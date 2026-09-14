@@ -1,0 +1,1 @@
+export const CANCELLATION_RETENTION_RATE = 0.1

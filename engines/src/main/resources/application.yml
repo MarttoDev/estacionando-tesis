@@ -1,0 +1,15 @@
+spring:
+  application:
+    name: engines
+
+server:
+  port: 8081
+
+mapbox:
+  access-token: ${MAPBOX_ACCESS_TOKEN:}
+  base-url: https://api.mapbox.com
+
+pricing:
+  default-base-price: 1000
+  min-multiplier: 0.7
+  max-multiplier: 1.5

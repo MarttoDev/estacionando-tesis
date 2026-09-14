@@ -1,0 +1,219 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  rut          String   @unique
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  avatarUrl    String?  @map("avatar_url")
+  isAdmin      Boolean  @default(false) @map("is_admin")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  sessions             Session[]
+  parkingSpots         ParkingSpot[]
+  reservations         Reservation[]
+  reviewsWritten       Review[]              @relation("ReviewsWritten")
+  reviewsReceived      Review[]              @relation("ReviewsReceived")
+  notifications        Notification[]
+  identityVerification IdentityVerification?
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id
+  userId    String   @map("user_id")
+  expiresAt DateTime @map("expires_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+/// No sensitive data on purpose: this is the only table exposed to Supabase Realtime,
+/// so the browser can be told "something changed in <topic>" without ever seeing real rows.
+model ChangeEvent {
+  id        String   @id @default(uuid())
+  topic     String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("change_events")
+}
+
+model ParkingType {
+  id   String @id @default(uuid())
+  name String @unique
+
+  parkingSpots ParkingSpot[]
+
+  @@map("parking_types")
+}
+
+model ParkingSpot {
+  id            String   @id @default(uuid())
+  ownerId       String   @map("owner_id")
+  parkingTypeId String   @map("parking_type_id")
+  title         String
+  area          String
+  comuna        String?
+  latitude      Float?
+  longitude     Float?
+  imageUrl      String?  @map("image_url")
+  pricePerHour  Int      @map("price_per_hour")
+  isPublished   Boolean  @default(false) @map("is_published")
+  archivedAt    DateTime? @map("archived_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  owner         User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  parkingType   ParkingType    @relation(fields: [parkingTypeId], references: [id])
+  availabilities Availability[]
+  reservations  Reservation[]
+
+  @@map("parking_spots")
+}
+
+model Availability {
+  id        String   @id @default(uuid())
+  spotId    String   @map("spot_id")
+  startTime DateTime @map("start_time")
+  endTime   DateTime @map("end_time")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  spot         ParkingSpot   @relation(fields: [spotId], references: [id], onDelete: Cascade)
+  reservations Reservation[]
+
+  @@map("availabilities")
+}
+
+enum ReservationStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+model Reservation {
+  id               String            @id @default(uuid())
+  spotId           String            @map("spot_id")
+  userId           String            @map("user_id")
+  availabilityId   String            @map("availability_id")
+  startTime        DateTime          @map("start_time")
+  endTime          DateTime          @map("end_time")
+  totalPrice       Int               @map("total_price")
+  status           ReservationStatus @default(PENDING)
+  confirmationCode String            @unique @map("confirmation_code")
+  createdAt        DateTime          @default(now()) @map("created_at")
+
+  spot         ParkingSpot  @relation(fields: [spotId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  availability Availability @relation(fields: [availabilityId], references: [id], onDelete: Cascade)
+  reviews      Review[]
+  payment      Payment?
+
+  @@index([spotId, status])
+  @@map("reservations")
+}
+
+enum ReviewDirection {
+  RENTER_TO_HOST
+  HOST_TO_RENTER
+}
+
+/// Not used by any feature yet — modeled ahead of time for the reviews/reputation phase.
+model Review {
+  id            String          @id @default(uuid())
+  reservationId String          @map("reservation_id")
+  authorId      String          @map("author_id")
+  targetUserId  String          @map("target_user_id")
+  direction     ReviewDirection
+  rating        Int
+  comment       String?
+  createdAt     DateTime        @default(now()) @map("created_at")
+
+  reservation Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  author      User        @relation("ReviewsWritten", fields: [authorId], references: [id], onDelete: Cascade)
+  target      User        @relation("ReviewsReceived", fields: [targetUserId], references: [id], onDelete: Cascade)
+
+  @@unique([reservationId, authorId])
+  @@map("reviews")
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+/// Not used by any feature yet — modeled ahead of time for the real-payments phase (Stripe/Webpay).
+model Payment {
+  id                String        @id @default(uuid())
+  reservationId     String        @unique @map("reservation_id")
+  amount            Int
+  refundedAmount    Int           @default(0) @map("refunded_amount")
+  status            PaymentStatus @default(PENDING)
+  provider          String
+  providerPaymentId String?       @map("provider_payment_id")
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
+
+  reservation Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}
+
+enum NotificationType {
+  RESERVATION_CONFIRMED
+  RESERVATION_CANCELLED
+  RESERVATION_REMINDER
+  SPOT_PUBLISHED
+  ADMIN_ALERT
+}
+
+/// Not used by any feature yet — modeled ahead of time for the notifications phase (email and/or in-app).
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String           @map("user_id")
+  type      NotificationType
+  title     String
+  message   String
+  readAt    DateTime?        @map("read_at")
+  sentAt    DateTime?        @map("sent_at")
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+/// Not used by any feature yet — modeled ahead of time for real identity verification
+/// (today's face-scan step in Profile is a simulation and doesn't write here).
+model IdentityVerification {
+  id         String             @id @default(uuid())
+  userId     String             @unique @map("user_id")
+  status     VerificationStatus @default(PENDING)
+  provider   String?
+  verifiedAt DateTime?          @map("verified_at")
+  createdAt  DateTime           @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("identity_verifications")
+}
