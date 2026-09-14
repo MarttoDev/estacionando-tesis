@@ -3,7 +3,7 @@ spring:
     name: engines
 
 server:
-  port: 8081
+  port: ${PORT:8081}
 
 mapbox:
   access-token: ${MAPBOX_ACCESS_TOKEN:}
