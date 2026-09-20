@@ -145,3 +145,55 @@ export async function cancelReservationAdminAction(_prevState: AdminActionState,
   await notifyChange('parking_spots')
   return { success: true }
 }
+
+export async function toggleTaskAction(_prevState: AdminActionState, formData: FormData): Promise<AdminActionState> {
+  const caller = await getCurrentUser()
+  if (!caller || !caller.isAdmin) {
+    return { error: 'No tienes permisos de administrador' }
+  }
+
+  const taskId = formData.get('taskId')
+  if (typeof taskId !== 'string' || !taskId) {
+    return { error: 'Tarea inválida' }
+  }
+
+  const task = await prisma.task.findUnique({ where: { id: taskId } })
+  if (!task) {
+    return { error: 'Tarea no encontrada' }
+  }
+
+  await prisma.task.update({ where: { id: taskId }, data: { done: formData.get('done') === 'true' } })
+  await notifyChange('tasks')
+  return { success: true }
+}
+
+export async function assignTaskAction(_prevState: AdminActionState, formData: FormData): Promise<AdminActionState> {
+  const caller = await getCurrentUser()
+  if (!caller || !caller.isAdmin) {
+    return { error: 'No tienes permisos de administrador' }
+  }
+
+  const taskId = formData.get('taskId')
+  if (typeof taskId !== 'string' || !taskId) {
+    return { error: 'Tarea inválida' }
+  }
+
+  const task = await prisma.task.findUnique({ where: { id: taskId } })
+  if (!task) {
+    return { error: 'Tarea no encontrada' }
+  }
+
+  const userIdRaw = formData.get('userId')
+  const userId = typeof userIdRaw === 'string' && userIdRaw ? userIdRaw : null
+
+  if (userId) {
+    const target = await prisma.user.findUnique({ where: { id: userId } })
+    if (!target || !target.isAdmin) {
+      return { error: 'Solo se puede asignar una tarea a un administrador' }
+    }
+  }
+
+  await prisma.task.update({ where: { id: taskId }, data: { assignedToId: userId } })
+  await notifyChange('tasks')
+  return { success: true }
+}

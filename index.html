@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>estacionando — documentación técnica</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600&display=swap">
+<style>
+  /* Mismos tokens que app/globals.css (oklch) — el documento usa exactamente los colores
+     y tipografías de la app real, no una identidad inventada aparte. */
+  :root{
+    --bg:oklch(0.965 0.012 250);
+    --surface:oklch(1 0 0);
+    --surface-2:oklch(0.94 0.015 250);
+    --ink:oklch(0.16 0.025 255);
+    --muted:oklch(0.52 0.03 255);
+    --line:oklch(0.89 0.02 250);
+    --accent:oklch(0.55 0.19 255);
+    --accent-soft:oklch(0.55 0.19 255 / 12%);
+    --good:oklch(0.6 0.14 155);
+    --good-soft:oklch(0.6 0.14 155 / 14%);
+    --warn:oklch(0.6 0.16 70);
+    --warn-soft:oklch(0.6 0.16 70 / 14%);
+    --code-bg:oklch(0.16 0.025 255);
+    --code-ink:oklch(0.93 0.01 250);
+    --code-muted:oklch(0.62 0.03 255);
+    --code-kw:oklch(0.75 0.14 275);
+    --code-str:oklch(0.75 0.13 155);
+    --code-num:oklch(0.78 0.14 75);
+    --shadow: 0 1px 2px rgba(18,20,28,.04), 0 10px 28px -14px rgba(18,20,28,.14);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:oklch(0.17 0.02 255); --surface:oklch(0.22 0.02 255); --surface-2:oklch(0.27 0.02 255);
+      --ink:oklch(0.95 0.01 250); --muted:oklch(0.65 0.02 250); --line:oklch(0.32 0.02 255);
+      --accent:oklch(0.55 0.19 255); --accent-soft:oklch(0.55 0.19 255 / 18%);
+      --good:oklch(0.72 0.16 155); --good-soft:oklch(0.72 0.16 155 / 16%);
+      --warn:oklch(0.75 0.16 70); --warn-soft:oklch(0.75 0.16 70 / 16%);
+      --code-bg:oklch(0.12 0.02 255); --code-ink:oklch(0.92 0.01 250); --code-muted:oklch(0.55 0.03 255);
+      --code-kw:oklch(0.75 0.14 275); --code-str:oklch(0.75 0.13 155); --code-num:oklch(0.78 0.14 75);
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 14px 32px -16px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:oklch(0.17 0.02 255); --surface:oklch(0.22 0.02 255); --surface-2:oklch(0.27 0.02 255);
+    --ink:oklch(0.95 0.01 250); --muted:oklch(0.65 0.02 250); --line:oklch(0.32 0.02 255);
+    --accent:oklch(0.55 0.19 255); --accent-soft:oklch(0.55 0.19 255 / 18%);
+    --good:oklch(0.72 0.16 155); --good-soft:oklch(0.72 0.16 155 / 16%);
+    --warn:oklch(0.75 0.16 70); --warn-soft:oklch(0.75 0.16 70 / 16%);
+    --code-bg:oklch(0.12 0.02 255); --code-ink:oklch(0.92 0.01 250); --code-muted:oklch(0.55 0.03 255);
+    --code-kw:oklch(0.75 0.14 275); --code-str:oklch(0.75 0.13 155); --code-num:oklch(0.78 0.14 75);
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 14px 32px -16px rgba(0,0,0,.6);
+  }
+
+  *{box-sizing:border-box}
+  body{ background:var(--bg); color:var(--ink); font-family:'Geist', ui-sans-serif, system-ui, sans-serif; line-height:1.6; margin:0; }
+  h1,h2,h3{ font-family:'Geist', ui-sans-serif, system-ui, sans-serif; text-wrap:balance; margin:0; }
+  code, .mono{ font-family:'Geist Mono', ui-monospace, 'SFMono-Regular', monospace; }
+  p{ margin:0 }
+  a{ color:var(--accent) }
+  .wrap{ max-width:1180px; margin:0 auto; padding-inline:20px }
+
+  /* Mobile-first: everything below is written for a narrow phone by default, then
+     upgraded for wider screens inside @media (min-width: …) blocks. This guarantees the
+     stacked, single-column phone layout is the unconditional default rather than something
+     a max-width override has to successfully cancel out of a desktop layout. */
+
+  header.hero{ border-bottom:1px solid var(--line); background:var(--surface); }
+  header.hero .wrap{ padding-block:22px 18px }
+  .hero-top{ display:flex; flex-direction:column; align-items:flex-start; gap:14px; }
+  .hero-top > div{ min-width:0; width:100%; }
+  .kicker{ font-size:.8rem; color:var(--muted); }
+  header.hero h1{ font-size:clamp(1.55rem, 7vw, 2.5rem); font-weight:800; letter-spacing:-.02em; margin-top:8px; }
+  header.hero h1 .dot{ color:var(--accent) }
+  header.hero p.tagline{ margin-top:10px; font-size:.95rem; color:var(--muted); max-width:70ch; }
+
+  .theme-toggle{
+    flex-shrink:0; display:inline-flex; align-items:center; gap:7px; cursor:pointer;
+    border:1px solid var(--line); background:var(--surface-2); color:var(--ink);
+    border-radius:999px; padding:8px 14px; font-family:'Geist', sans-serif; font-size:.82rem; font-weight:500;
+  }
+  .theme-toggle:hover{ border-color:var(--accent-soft); background:var(--accent-soft); }
+  .theme-toggle svg{ width:15px; height:15px; flex-shrink:0; }
+
+  .live-links{ margin-top:16px; display:flex; flex-wrap:wrap; gap:8px; }
+  .live-link{
+    display:inline-flex; align-items:center; gap:7px; max-width:100%;
+    border:1px solid var(--line); background:var(--surface-2); border-radius:999px;
+    padding:7px 12px 7px 9px; font-size:.8rem; font-weight:500; text-decoration:none; color:var(--ink);
+  }
+  .live-link .mono{ color:var(--muted); font-size:.76rem; overflow:hidden; text-overflow:ellipsis; }
+  .live-dot{ width:7px; height:7px; border-radius:50%; background:var(--good); flex-shrink:0; box-shadow:0 0 0 3px var(--good-soft); }
+
+  nav.site-links{ margin-top:18px; display:flex; gap:4px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  .site-link{ padding:9px 4px; margin-bottom:-1px; margin-right:14px; font-size:.88rem; font-weight:500; text-decoration:none; color:var(--muted); border-bottom:2px solid transparent; }
+  .site-link.active{ color:var(--ink); border-bottom-color:var(--accent); }
+  .site-link:hover:not(.active){ color:var(--ink); }
+
+  main{ padding-block:0 }
+  .doc-shell{ display:grid; grid-template-columns:minmax(0,1fr); gap:22px; padding-block:22px 56px; align-items:start; }
+
+  nav.toc{ position:static; display:flex; flex-direction:row; flex-wrap:wrap; gap:6px; max-height:none; overflow:visible; }
+  nav.toc a{ border:1px solid var(--line); border-radius:10px; padding:6px 11px; }
+  nav.toc .toc-group{ display:contents; }
+  nav.toc .toc-label{ font-size:.76rem; color:var(--muted); width:100%; margin:6px 0 1px; }
+  nav.toc .toc-label:first-child{ margin-top:0; }
+
+  @media (min-width:640px){
+    header.hero .wrap{ padding-block:32px 26px }
+    .hero-top{ flex-direction:row; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:16px; }
+    .hero-top > div{ flex:1 1 260px; width:auto; }
+    .kicker{ font-size:.86rem; }
+    header.hero p.tagline{ font-size:1.03rem; }
+    .live-link .mono{ font-size:.78rem; }
+  }
+
+  @media (min-width:860px){
+    .doc-shell{ grid-template-columns:240px minmax(0,1fr); gap:48px; padding-block:32px 80px; }
+    nav.toc{
+      position:sticky; top:20px; flex-direction:column; flex-wrap:nowrap; gap:1px;
+      max-height:calc(100vh - 40px); overflow-y:auto;
+    }
+    nav.toc a{ border:none; border-radius:8px; padding:6px 8px; }
+    nav.toc .toc-label{ width:auto; margin:14px 0 6px; }
+    nav.toc .toc-label:first-child{ margin-top:0; }
+  }
+  nav.toc a{ color:var(--muted); text-decoration:none; font-size:.87rem; padding:6px 8px; border-radius:8px; display:flex; gap:8px; line-height:1.4; }
+  nav.toc a:hover{ color:var(--ink); background:var(--surface-2); }
+  nav.toc a .n{ color:var(--accent); font-variant-numeric:tabular-nums; flex-shrink:0; }
+
+  article section{ padding-block:34px; border-bottom:1px solid var(--line); scroll-margin-top:20px; }
+  article section:last-of-type{ border-bottom:none; padding-bottom:0 }
+  .sec-head{ display:flex; align-items:baseline; gap:11px; margin-bottom:16px; }
+  .sec-head .n{ color:var(--accent); font-variant-numeric:tabular-nums; font-weight:600; font-size:1.05rem; flex-shrink:0; }
+  .sec-head h2{ font-size:1.35rem; letter-spacing:-.01em }
+  article section > p, article section > ul{ max-width:72ch; margin-top:12px; font-size:.98rem; }
+  article section > ul{ padding-left:1.2em }
+  article section > ul li{ margin-top:6px }
+  .lede{ font-size:1.03rem; color:var(--muted); max-width:72ch; }
+
+  .callout{ margin-top:16px; max-width:72ch; padding:14px 16px; border-radius:12px; background:var(--accent-soft); font-size:.92rem; line-height:1.55; }
+  .callout.good{ background:var(--good-soft) }
+  .callout.warn{ background:var(--warn-soft) }
+  .callout b{ display:block; font-size:.82rem; font-weight:600; margin-bottom:4px; }
+  .callout.good b{ color:var(--good) } .callout.warn b{ color:var(--warn) } .callout:not(.good):not(.warn) b{ color:var(--accent) }
+
+  .code{ margin-top:14px; max-width:100%; overflow-x:auto; border-radius:12px; background:var(--code-bg); box-shadow:var(--shadow); }
+  .code .file{ font-family:'Geist Mono', monospace; font-size:.74rem; color:var(--code-muted); padding:9px 16px; border-bottom:1px solid rgba(255,255,255,.08); }
+  .code pre{ margin:0; padding:14px 16px; font-size:.84rem; line-height:1.6; }
+  .code code{ font-family:'Geist Mono', monospace; color:var(--code-ink); white-space:pre; }
+  .code .c{ color:var(--code-muted); font-style:italic; }
+  .code .kw{ color:var(--code-kw); }
+  .code .str{ color:var(--code-str); }
+  .code .num{ color:var(--code-num); }
+
+  .example{ margin-top:14px; max-width:72ch; border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+  .example .row{ display:flex; justify-content:space-between; gap:12px; padding:9px 14px; font-size:.88rem; }
+  .example .row + .row{ border-top:1px solid var(--line) }
+  .example .row.total{ background:var(--surface-2); font-weight:600; }
+  .example .row span:last-child{ font-family:'Geist Mono', monospace; font-variant-numeric:tabular-nums; }
+
+  .table-wrap{ margin-top:14px; max-width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  table.spec{ border-collapse:collapse; font-size:.88rem; width:100%; min-width:480px; }
+  table.spec th, table.spec td{ text-align:left; padding:7px 14px 7px 0; border-bottom:1px solid var(--line); vertical-align:top; }
+  table.spec th{ color:var(--muted); font-weight:600; font-size:.82rem; }
+  table.spec td code{ font-size:.85em; background:var(--surface-2); padding:1px 5px; border-radius:5px; }
+
+  /* stack cards (sección 01) — 1 columna por defecto (celular), 2 desde 680px */
+  .stack-grid{ display:grid; gap:14px; grid-template-columns:minmax(0,1fr); margin-top:16px; }
+  @media (min-width:680px){ .stack-grid{ grid-template-columns:repeat(2, minmax(0,1fr)); } }
+  .stack-card{ background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:16px 18px; box-shadow:var(--shadow); }
+  .stack-card .layer{ font-size:.72rem; font-weight:600; color:var(--muted); }
+  .stack-card h3{ margin-top:6px; font-size:1.05rem; }
+  .stack-card p.role{ margin-top:6px; font-size:.89rem; color:var(--muted); line-height:1.55; }
+  .pill-row{ display:flex; flex-wrap:wrap; gap:6px; margin-top:12px; }
+  .pill{ font-size:.78rem; padding:3px 9px; border-radius:999px; background:var(--surface-2); border:1px solid var(--line); white-space:nowrap; color:var(--muted); }
+
+  /* pipeline de despliegue (sección 02) — cada nodo ocupa el ancho completo por defecto */
+  .pipeline{ display:flex; flex-direction:column; align-items:stretch; gap:0; max-width:640px; margin:16px auto 0; }
+  .stage{ display:flex; flex-direction:column; align-items:center; gap:0; }
+  .stage-row{ display:flex; flex-direction:column; width:100%; gap:14px; }
+  .node{ width:100%; max-width:100%; background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:16px 18px; box-shadow:var(--shadow); text-align:left; }
+  .node .platform{ display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; }
+  .node .platform b{ font-size:1rem; }
+  .node .badge{ font-size:.7rem; font-weight:600; padding:3px 9px; border-radius:999px; white-space:nowrap; }
+  .badge.live{ background:var(--good-soft); color:var(--good); }
+  .badge.cloud{ background:var(--accent-soft); color:var(--accent); }
+  .node p.hosts{ margin-top:6px; font-size:.87rem; color:var(--muted); }
+  .node a.node-link{ display:inline-block; margin-top:8px; font-family:'Geist Mono', monospace; font-size:.78rem; text-decoration:none; word-break:break-all; }
+  .connector{ display:flex; align-items:center; justify-content:center; padding-block:8px; }
+  .connector .line{ width:1px; height:22px; background:var(--line); }
+
+  @media (min-width:560px){
+    .stage-row{ flex-direction:row; flex-wrap:wrap; justify-content:center; }
+    .node{ flex:1 1 260px; max-width:320px; }
+  }
+
+  /* comparación de arquitectura (sección 03) */
+  .compare{ display:grid; gap:14px; grid-template-columns:minmax(0,1fr); margin-top:16px; }
+  @media (min-width:680px){ .compare{ grid-template-columns:minmax(0,1fr) minmax(0,1fr) } }
+  .compare-col{ border-radius:16px; padding:20px; }
+  .compare-col.original{ background:var(--surface); border:1px solid var(--line); }
+  .compare-col.final{ background:var(--surface); border:1px solid var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+  .compare-col h3{ font-size:1rem; display:flex; align-items:center; gap:8px; }
+  .compare-col .tag{ font-size:.7rem; font-weight:600; padding:2px 9px; border-radius:999px; }
+  .compare-col.original .tag{ background:var(--warn-soft); color:var(--warn); }
+  .compare-col.final .tag{ background:var(--good-soft); color:var(--good); }
+  .compare-col ul{ margin:14px 0 0; padding-left:1.1em; font-size:.89rem; color:var(--muted); display:flex; flex-direction:column; gap:8px; }
+  .compare-col ul li::marker{ color:var(--line) }
+
+  footer{ border-top:1px solid var(--line); padding-block:20px; font-size:.82rem; color:var(--muted); }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="hero-top">
+      <div>
+        <p class="kicker">Documentación técnica — stack, despliegue y por qué funciona así</p>
+        <h1>estacionando<span class="dot">.</span></h1>
+        <p class="tagline">Qué hace cada pieza del sistema, dónde vive desplegada, por qué la arquitectura terminó siendo distinta a la propuesta original, y el detalle de cada decisión no trivial con el código exacto que la implementa.</p>
+      </div>
+      <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Cambiar entre modo claro y oscuro">
+        <svg id="theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></svg>
+        <span id="theme-label">Modo oscuro</span>
+      </button>
+    </div>
+    <div class="live-links">
+      <a class="live-link" href="https://estacionando.vercel.app" target="_blank" rel="noopener"><span class="live-dot"></span> App <span class="mono">estacionando.vercel.app</span></a>
+      <a class="live-link" href="https://estacionando.onrender.com/api/health" target="_blank" rel="noopener"><span class="live-dot"></span> Motores <span class="mono">estacionando.onrender.com</span></a>
+      <a class="live-link" href="https://github.com/1loro/estacionando" target="_blank" rel="noopener">Código <span class="mono">github.com/1loro/estacionando</span></a>
+    </div>
+    <nav class="site-links">
+      <a class="site-link active" href="index.html">Cómo funciona estacionando</a>
+      <a class="site-link" href="diagrama-componentes.html">Diagrama de componentes</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap doc-shell">
+  <nav class="toc">
+    <div class="toc-group">
+      <span class="toc-label">El stack</span>
+      <a href="#stack"><span class="n">01</span>Pieza por pieza</a>
+      <a href="#deploy"><span class="n">02</span>Dónde vive cada pieza</a>
+      <a href="#arquitectura"><span class="n">03</span>De la propuesta a esto</a>
+    </div>
+    <div class="toc-group">
+      <span class="toc-label">Cómo funciona por dentro</span>
+      <a href="#filosofia"><span class="n">04</span>Filosofía de arquitectura</a>
+      <a href="#auth"><span class="n">05</span>Autenticación y sesiones</a>
+      <a href="#rut"><span class="n">06</span>Validación de RUT</a>
+      <a href="#disponibilidad"><span class="n">07</span>Espacios y disponibilidad</a>
+      <a href="#reservas"><span class="n">08</span>Reservas sin choques</a>
+      <a href="#archivar"><span class="n">09</span>Eliminar con reserva activa</a>
+      <a href="#storage"><span class="n">10</span>Fotos y almacenamiento</a>
+      <a href="#mapas"><span class="n">11</span>Geocodificación y mapas</a>
+      <a href="#precio"><span class="n">12</span>Motor de precio</a>
+      <a href="#ruta"><span class="n">13</span>Motor de ruta</a>
+      <a href="#separacion"><span class="n">14</span>Por qué Java aparte</a>
+      <a href="#seguridad"><span class="n">15</span>Seguridad — resumen</a>
+    </div>
+  </nav>
+
+  <article>
+
+    <section id="stack">
+      <div class="sec-head"><span class="n">01</span><h2>El stack, pieza por pieza</h2></div>
+      <p class="lede">Cuatro capas con responsabilidades separadas. Cada tecnología está ahí por un motivo concreto, no por moda.</p>
+      <div class="stack-grid">
+        <div class="stack-card">
+          <p class="layer">Aplicación</p>
+          <h3>Next.js 16 (App Router)</h3>
+          <p class="role">El framework sobre el que corre todo el frontend <em>y</em> el backend a la vez. Renderiza las páginas en el servidor y expone <b>Server Actions</b> — funciones de servidor que el navegador puede llamar directo, sin armar una API REST separada para cada operación (crear un espacio, reservar, cancelar).</p>
+          <div class="pill-row"><span class="pill">React 19</span><span class="pill">TypeScript</span><span class="pill">Tailwind CSS v4</span></div>
+        </div>
+        <div class="stack-card">
+          <p class="layer">Datos</p>
+          <h3>Prisma (ORM)</h3>
+          <p class="role">La capa entre el código y la base de datos. El archivo <code>schema.prisma</code> define cada tabla una sola vez, y Prisma genera un cliente con autocompletado y tipos — el código nunca escribe SQL a mano, y cada cambio de estructura queda versionado como una migración.</p>
+          <div class="pill-row"><span class="pill">PostgreSQL</span><span class="pill">migraciones versionadas</span></div>
+        </div>
+        <div class="stack-card">
+          <p class="layer">Identidad &amp; datos</p>
+          <h3>Supabase</h3>
+          <p class="role">Aloja tres cosas: la base de datos <b>PostgreSQL</b> real, el <b>almacenamiento</b> de fotos (espacios y avatares), y <b>Realtime</b> — el mecanismo por el que un cambio que hace una persona se refleja en la pantalla de otra sin recargar. La autenticación es propia, escrita a mano.</p>
+          <div class="pill-row"><span class="pill">Storage</span><span class="pill">Realtime</span><span class="pill">bcrypt</span></div>
+        </div>
+        <div class="stack-card">
+          <p class="layer">Mapas</p>
+          <h3>Mapbox</h3>
+          <p class="role">Convierte una dirección escrita en texto a coordenadas reales (Geocoding), dibuja los mapas interactivos, y calcula rutas y tiempos de viaje reales (Directions y Matrix) — alimenta al motor de precio y al de ruta.</p>
+          <div class="pill-row"><span class="pill">Geocoding API</span><span class="pill">Directions API</span><span class="pill">Matrix API</span></div>
+        </div>
+        <div class="stack-card">
+          <p class="layer">Motores (servicio aparte)</p>
+          <h3>Java 21 + Spring Boot 4</h3>
+          <p class="role">Un servicio independiente, en otro lenguaje y desplegado en otra plataforma, que resuelve dos problemas que no son CRUD: sugerir un precio y optimizar una ruta. No toca la base de datos — recibe contexto por HTTP y devuelve un cálculo.</p>
+          <div class="pill-row"><span class="pill">Maven</span><span class="pill">REST/JSON</span><span class="pill">Docker</span></div>
+        </div>
+        <div class="stack-card">
+          <p class="layer">Validación &amp; seguridad</p>
+          <h3>Zod + sesiones propias</h3>
+          <p class="role">Cada Server Action valida su entrada con Zod antes de tocar la base. Las sesiones usan un token opaco cuyo <em>hash</em> — no el token — se guarda en la base, así una filtración no expone sesiones usables.</p>
+          <div class="pill-row"><span class="pill">SHA-256</span><span class="pill">cookies httpOnly</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="deploy">
+      <div class="sec-head"><span class="n">02</span><h2>Dónde vive cada pieza</h2></div>
+      <p class="lede">Tres plataformas en la nube, cada una alojando lo que le corresponde. Next.js y el servicio Java se despliegan solos cada vez que se sube código nuevo al mismo repositorio de GitHub.</p>
+      <div class="pipeline">
+        <div class="stage">
+          <div class="node" style="text-align:center; max-width:260px;">
+            <div class="platform"><b>Navegador</b></div>
+            <p class="hosts">Cualquier persona, desde el link</p>
+          </div>
+        </div>
+        <div class="connector"><div class="line"></div></div>
+        <div class="stage">
+          <div class="node">
+            <div class="platform"><b>Vercel</b> <span class="badge live">en vivo</span></div>
+            <p class="hosts">Aloja la app de Next.js — todas las páginas y la lógica de negocio.</p>
+            <a class="node-link" href="https://estacionando.vercel.app" target="_blank" rel="noopener">estacionando.vercel.app</a>
+          </div>
+        </div>
+        <div class="connector"><div class="line"></div></div>
+        <div class="stage">
+          <div class="stage-row">
+            <div class="node">
+              <div class="platform"><b>Supabase</b> <span class="badge cloud">nube</span></div>
+              <p class="hosts">PostgreSQL, Storage de fotos, y Realtime.</p>
+            </div>
+            <div class="node">
+              <div class="platform"><b>Render</b> <span class="badge live">en vivo</span></div>
+              <p class="hosts">Corre el contenedor Docker con el servicio Java.</p>
+              <a class="node-link" href="https://estacionando.onrender.com/api/health" target="_blank" rel="noopener">estacionando.onrender.com</a>
+            </div>
+          </div>
+        </div>
+        <div class="connector"><div class="line"></div></div>
+        <div class="stage">
+          <div class="node" style="text-align:center; max-width:260px;">
+            <div class="platform"><b>Mapbox</b> <span class="badge cloud">nube</span></div>
+            <p class="hosts">Geocodificación, mapas y rutas reales</p>
+          </div>
+        </div>
+      </div>
+      <div class="callout">
+        <b>Un detalle que importa</b>
+        Next.js llama al servicio de Java <em>desde el servidor</em>, nunca desde el navegador de la persona — no hace falta configurar CORS entre Vercel y Render, y el token de Mapbox del lado del motor nunca queda expuesto al público.
+      </div>
+    </section>
+
+    <section id="arquitectura">
+      <div class="sec-head"><span class="n">03</span><h2>De la propuesta original a esto</h2></div>
+      <p class="lede">La arquitectura original era de microservicios completos. Lo que está en vivo hoy es más simple a propósito — es la base sobre la que se sigue construyendo, no un reemplazo definitivo de lo que falta.</p>
+      <div class="compare">
+        <div class="compare-col original">
+          <h3>Propuesta original <span class="tag">diseño</span></h3>
+          <ul>
+            <li>API Gateway (Spring Cloud Gateway) con JWT, rate limiting y balanceo de carga</li>
+            <li>4 microservicios separados: Estacionamientos, Reservas, Usuarios, Notificaciones</li>
+            <li>Bus de eventos con RabbitMQ para comunicación asíncrona</li>
+            <li>App móvil en React Native + panel admin en React aparte</li>
+            <li>KYC con proveedor externo real</li>
+          </ul>
+        </div>
+        <div class="compare-col final">
+          <h3>Lo construido hasta ahora <span class="tag">en vivo</span></h3>
+          <ul>
+            <li>Sin gateway: Next.js recibe las peticiones y habla directo con la base vía Server Actions</li>
+            <li>Un monolito modular — todo el CRUD en un solo backend, ordenado por carpetas de dominio</li>
+            <li>Sin cola de mensajes: todo es síncrono; Realtime de Supabase cubre el único caso que necesitaba "avisar a otros"</li>
+            <li>Web responsiva para cliente, anfitrión y administrador, ya en producción</li>
+            <li>App móvil <b>pendiente</b> — no entró en este primer despliegue por alcance de tiempo, no porque se haya descartado; queda para una fase siguiente</li>
+            <li>KYC <b>pendiente</b> — hoy la verificación de identidad no está implementada; la tabla <code>identity_verifications</code> ya existe en la base, lista para conectar un proveedor real en la próxima fase</li>
+          </ul>
+        </div>
+      </div>
+      <div class="callout">
+        <b>Por qué se empezó por esta versión</b>
+        La arquitectura de microservicios, la app móvil y el KYC real no están descartados — son trabajo que corresponde a las fases siguientes del proyecto, no a este primer despliegue. Para tres personas construyendo esto en un semestre, montar un gateway, cuatro servicios, una cola de mensajes, una app nativa y una integración de verificación de identidad real desde el día uno habría consumido casi todo el tiempo en infraestructura antes de tener algo funcionando de punta a punta. Esta primera versión entrega el valor central al usuario — reservar un espacio, publicarlo, ver precio y ruta sugeridos — con una fracción del costo operativo, cabe entera en planes gratuitos, y deja modelado en la base de datos lo que todavía falta (reseñas, pagos, notificaciones, verificación de identidad) para cuando se implemente. Es la base del proyecto, no la versión final.
+      </div>
+    </section>
+
+    <section id="filosofia">
+      <div class="sec-head"><span class="n">04</span><h2>Filosofía de arquitectura</h2></div>
+      <p class="lede">Una sola regla organiza todo el sistema: <b>Next.js + Prisma es el backend</b> — todo el CRUD, la autenticación y las reglas de negocio viven ahí y hablan directo con PostgreSQL. Java <b>no es un segundo backend</b>; son dos calculadoras sin estado que Next.js consulta por HTTP cuando necesita un número que no es una simple lectura de base de datos: un precio sugerido, o una ruta óptima.</p>
+      <div class="callout">
+        <b>Por qué no dos backends completos</b>
+        Duplicar auth, modelos y acceso a datos en dos lenguajes distintos multiplica el trabajo de mantención sin aportar valor al usuario. Los motores en Java no necesitan su propia base de datos: reciben todo el contexto que necesitan en el cuerpo de la petición HTTP y devuelven un resultado — nunca persisten nada por su cuenta.
+      </div>
+    </section>
+
+    <section id="auth">
+      <div class="sec-head"><span class="n">05</span><h2>Autenticación y sesiones</h2></div>
+      <p>No se usa ninguna librería de auth de terceros: el sistema de sesiones está escrito a mano, inspirado en el patrón que popularizó Lucia (hoy descontinuada como paquete). La idea central es que <b>la base de datos nunca guarda un token utilizable</b>, solo su huella.</p>
+      <ul>
+        <li>Al hacer login se genera un token aleatorio de 32 bytes (<code>crypto.randomBytes</code>).</li>
+        <li>Ese token se hashea con SHA-256 y <b>el hash</b> es lo que se guarda como llave primaria en <code>sessions</code>.</li>
+        <li>El token original (sin hashear) va en una cookie <code>httpOnly</code>, <code>secure</code> en producción y <code>sameSite=lax</code>.</li>
+      </ul>
+      <div class="code">
+        <div class="file">lib/auth/session.ts</div>
+        <pre><code><span class="kw">function</span> hashToken(token) {
+  <span class="kw">return</span> crypto.createHash(<span class="str">'sha256'</span>).update(token).digest(<span class="str">'hex'</span>)
+}
+
+<span class="kw">export async function</span> createSession(userId) {
+  <span class="kw">const</span> token = generateSessionToken()
+  <span class="kw">const</span> expiresAt = <span class="kw">new</span> Date(Date.now() + SESSION_DURATION_MS)
+
+  <span class="c">// la llave primaria es el HASH, nunca el token real</span>
+  <span class="kw">await</span> prisma.session.create({ data: { id: hashToken(token), userId, expiresAt } })
+  <span class="kw">await</span> setSessionCookie(token, expiresAt)
+}</code></pre>
+      </div>
+      <p style="margin-top:14px">Si alguien filtrara la base de datos completa, no tendría ninguna sesión usable: no puede revertir un hash SHA-256 para obtener el token que la cookie realmente necesita.</p>
+      <div class="callout">
+        <b>Renovación deslizante</b>
+        Cada vez que se valida una sesión y le queda menos de la mitad de su vida útil, se le renueva la expiración silenciosamente (sin pedirle al usuario que vuelva a loguearse). Esa escritura de cookie solo puede hacerse desde un Server Action o Route Handler — si la validación ocurre durante el render de un Server Component, el intento de escritura se envuelve en un <code>try/catch</code> y se ignora: la sesión en la BD igual se extiende, la cookie se pone al día en la próxima interacción real.
+      </div>
+    </section>
+
+    <section id="rut">
+      <div class="sec-head"><span class="n">06</span><h2>Validación de RUT chileno</h2></div>
+      <p>El registro exige un RUT válido, calculado con el algoritmo de módulo 11 sobre el cuerpo del número, comparando el dígito verificador obtenido contra el ingresado. No se llama a ningún servicio externo — es una función pura escrita desde cero.</p>
+      <div class="code">
+        <div class="file">lib/auth/rut.ts</div>
+        <pre><code><span class="kw">export function</span> isValidRut(raw) {
+  <span class="kw">const</span> match = <span class="str">/^(\d{7,8})-([\dK])$/</span>.exec(raw)
+  <span class="kw">if</span> (!match) <span class="kw">return false</span>
+
+  <span class="kw">const</span> [, body, dv] = match
+  <span class="kw">let</span> sum = <span class="num">0</span>, multiplier = <span class="num">2</span>
+  <span class="kw">for</span> (<span class="kw">let</span> i = body.length - <span class="num">1</span>; i >= <span class="num">0</span>; i--) {
+    sum += Number(body[i]) * multiplier
+    multiplier = multiplier === <span class="num">7</span> ? <span class="num">2</span> : multiplier + <span class="num">1</span>
+  }
+
+  <span class="kw">const</span> remainder = <span class="num">11</span> - (sum % <span class="num">11</span>)
+  <span class="kw">const</span> expectedDv = remainder === <span class="num">11</span> ? <span class="str">'0'</span> : remainder === <span class="num">10</span> ? <span class="str">'K'</span> : String(remainder)
+  <span class="kw">return</span> expectedDv === dv
+}</code></pre>
+      </div>
+      <p style="margin-top:14px">El multiplicador cicla 2,3,4,5,6,7,2,3… de derecha a izquierda sobre los dígitos del cuerpo — la definición exacta del algoritmo oficial del Servicio de Registro Civil. Combinado con Zod en el schema de registro, un RUT mal escrito nunca llega a tocar la base de datos.</p>
+    </section>
+
+    <section id="disponibilidad">
+      <div class="sec-head"><span class="n">07</span><h2>Espacios y disponibilidad</h2></div>
+      <p class="lede">La parte más delicada del modelo de datos: separar <b>lo que el dueño ofrece</b> de <b>lo que ya está tomado</b>, para poder mostrarle al usuario únicamente el tiempo realmente libre.</p>
+      <ul>
+        <li><code>Availability</code>: un rango horario amplio que el dueño define ("disponible todo el fin de semana").</li>
+        <li><code>Reservation</code>: el sub-rango exacto que un usuario reservó dentro de esa ventana — nunca la ventana completa.</li>
+      </ul>
+      <p style="margin-top:12px">Esto significa que una misma <code>Availability</code> de una semana puede tener varias reservas distintas de otros usuarios en distintos días, sin pisarse. Para calcular qué le queda libre a un espacio, se resta cada reserva confirmada de la ventana de disponibilidad con un algoritmo de resta de intervalos:</p>
+      <div class="code">
+        <div class="file">lib/parking-spots/free-ranges.ts</div>
+        <pre><code><span class="kw">export function</span> subtractBusyRanges(window, busyRanges) {
+  <span class="kw">let</span> segments = [window]
+
+  <span class="kw">for</span> (<span class="kw">const</span> busy <span class="kw">of</span> busyRanges) {
+    <span class="kw">const</span> next = []
+    <span class="kw">for</span> (<span class="kw">const</span> segment <span class="kw">of</span> segments) {
+      <span class="kw">if</span> (busy.end &lt;= segment.start || busy.start >= segment.end) {
+        next.push(segment) <span class="c">// no se tocan, queda igual</span>
+        <span class="kw">continue</span>
+      }
+      <span class="kw">if</span> (busy.start > segment.start) next.push({ start: segment.start, end: busy.start })
+      <span class="kw">if</span> (busy.end &lt; segment.end) next.push({ start: busy.end, end: segment.end })
+    }
+    segments = next
+  }
+
+  <span class="kw">return</span> segments.filter((s) => s.end > s.start)
+}</code></pre>
+      </div>
+      <p style="margin-top:14px">La idea: se parte con un solo segmento libre (toda la disponibilidad) y, por cada reserva ocupada, se recorta en dos pedazos si la reserva cae en medio, o se descarta el pedazo si la reserva lo cubre entero. Un ejemplo con números reales:</p>
+      <div class="example">
+        <div class="row"><span>Disponibilidad publicada</span><span>09:00 – 18:00</span></div>
+        <div class="row"><span>Reserva confirmada #1</span><span>11:00 – 12:00</span></div>
+        <div class="row"><span>Reserva confirmada #2</span><span>15:00 – 16:30</span></div>
+        <div class="row total"><span>Horarios que ve el usuario</span><span>09–11 · 12–15 · 16:30–18</span></div>
+      </div>
+    </section>
+
+    <section id="reservas">
+      <div class="sec-head"><span class="n">08</span><h2>Reservas sin choques</h2></div>
+      <p class="lede">Restar rangos evita mostrar horarios ocupados, pero no evita que <b>dos personas reserven el mismo minuto a la vez</b> — ese es un problema de concurrencia, no de cálculo.</p>
+      <div class="callout warn">
+        <b>La condición de carrera</b>
+        Usuario A y usuario B abren el mismo horario libre casi al mismo tiempo. Ambos leen "disponible". Ambos confirman. Sin protección, la base de datos terminaría con dos reservas confirmadas que se solapan — el espacio quedaría comprometido dos veces.
+      </div>
+      <p style="margin-top:14px">La solución es una transacción con el nivel de aislamiento más estricto de PostgreSQL, <code>SERIALIZABLE</code>, que vuelve a comprobar si existe un solapamiento <em>dentro</em> de la misma transacción, justo antes de insertar:</p>
+      <div class="code">
+        <div class="file">lib/reservations/actions.ts</div>
+        <pre><code><span class="kw">await</span> prisma.$transaction(<span class="kw">async</span> (tx) => {
+  <span class="kw">const</span> overlapping = <span class="kw">await</span> tx.reservation.findFirst({
+    where: {
+      spotId: availability.spotId,
+      status: <span class="str">'CONFIRMED'</span>,
+      startTime: { lt: endTime },
+      endTime: { gt: startTime },
+    },
+  })
+
+  <span class="kw">if</span> (overlapping) <span class="kw">throw new</span> Error(<span class="str">'SLOT_TAKEN'</span>)
+
+  <span class="kw">await</span> tx.reservation.create({ data: { <span class="c">/* ... */</span> } })
+}, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })</code></pre>
+      </div>
+      <p style="margin-top:14px">Si dos transacciones <code>SERIALIZABLE</code> intentan escribir de forma que se contradicen entre sí, Postgres aborta una de las dos con el código de error <code>P2034</code> en vez de dejar pasar el dato corrupto. Esa señal se atrapa explícitamente y se traduce en un mensaje humano ("alguien más reservó justo ahora, intenta de nuevo") en vez de un error genérico.</p>
+      <div class="callout good">
+        <b>Verificado, no solo escrito</b>
+        Se probó disparando dos reservas simultáneas y contradictorias con <code>Promise.all</code> contra la base de datos real: exactamente una se confirma, la otra recibe el error controlado. No es una garantía teórica — se ejecutó.
+      </div>
+      <p style="margin-top:14px">El precio también se congela en este mismo momento: <code>totalPrice</code> se calcula (<code>horas × precio por hora del espacio</code>) y se guarda dentro de la reserva, en vez de recalcularse cada vez que se muestra. Así, si el dueño sube el precio de su espacio después, las reservas ya hechas mantienen el precio que la persona realmente aceptó pagar — algo indispensable para que la política de cancelación (90% reembolsado, 10% retenido) sea sobre un monto real y estable.</p>
+    </section>
+
+    <section id="archivar">
+      <div class="sec-head"><span class="n">09</span><h2>Eliminar un espacio con una reserva activa</h2></div>
+      <p class="lede">Regla de negocio explícita: un dueño puede arrepentirse de ofrecer su espacio, pero no puede dejar a alguien sin el estacionamiento que ya pagó.</p>
+      <div class="table-wrap">
+      <table class="spec">
+        <tr><th>Estado</th><th>Significado</th></tr>
+        <tr><td><code>isPublished=true</code></td><td>Visible y reservable normalmente.</td></tr>
+        <tr><td><code>isPublished=false</code>, <code>archivedAt=null</code></td><td>El dueño lo pausó manualmente — puede reactivarlo.</td></tr>
+        <tr><td><code>isPublished=false</code>, <code>archivedAt=&lt;fecha&gt;</code></td><td>El dueño lo eliminó, pero queda oculto (no borrado) porque debe una reserva confirmada.</td></tr>
+      </table>
+      </div>
+      <p style="margin-top:14px">Al "eliminar" un espacio con reservas activas, no se borra el <code>ParkingSpot</code> — se archiva. Y de sus disponibilidades futuras, solo se eliminan las que <b>no</b> tienen ninguna reserva encima (borrar una que sí la tiene arrastraría en cascada el historial de esa reserva):</p>
+      <div class="code">
+        <div class="file">lib/parking-spots/actions.ts</div>
+        <pre><code><span class="kw">if</span> (activeReservations === <span class="num">0</span>) {
+  <span class="kw">await</span> prisma.parkingSpot.delete({ where: { id: spotId } })
+} <span class="kw">else</span> {
+  <span class="kw">await</span> prisma.$transaction([
+    prisma.availability.deleteMany({
+      where: { spotId, endTime: { gt: now }, reservations: { none: {} } },
+    }),
+    prisma.parkingSpot.update({ where: { id: spotId }, data: { isPublished: <span class="kw">false</span>, archivedAt: now } }),
+  ])
+}</code></pre>
+      </div>
+      <p style="margin-top:14px">En la interfaz, esto se traduce en un modal que le explica al dueño exactamente esto antes de confirmar: se eliminará de las búsquedas, pero la reserva pendiente se debe cumplir igual, con una vía de contacto a soporte para el caso excepcional.</p>
+    </section>
+
+    <section id="storage">
+      <div class="sec-head"><span class="n">10</span><h2>Fotos y almacenamiento</h2></div>
+      <p>Las fotos de espacios y avatares se validan antes de subir (solo JPG/PNG/WEBP, máximo 5&nbsp;MB) y se guardan en Supabase Storage con un nombre aleatorio (<code>crypto.randomUUID()</code>) para que dos usuarios nunca puedan pisarse un archivo.</p>
+      <div class="callout warn">
+        <b>Bug real encontrado antes de producción</b>
+        El cliente de Supabase (<code>@supabase/supabase-js</code>) intenta construir su cliente de Realtime aunque solo se use Storage, y ese cliente necesita un <code>WebSocket</code> global que Node 20 no trae por defecto — la app se caía al iniciar. Se detectó con una prueba de humo antes de que llegara a un usuario real, y se resolvió inyectando el paquete <code>ws</code> como implementación de <code>WebSocket</code>.
+      </div>
+    </section>
+
+    <section id="mapas">
+      <div class="sec-head"><span class="n">11</span><h2>Geocodificación, comuna y mapas</h2></div>
+      <p>Cuando el anfitrión escribe una dirección, un componente de autocompletado consulta la Geocoding API de Mapbox (restringida a Chile) y exige que se elija una sugerencia real — nunca se guardan coordenadas de texto libre sin verificar. De la respuesta se extrae además la <b>comuna</b> por separado, buscando el nivel <code>place</code> del contexto geográfico que devuelve Mapbox:</p>
+      <div class="code">
+        <div class="file">lib/mapbox/geocoding.ts</div>
+        <pre><code><span class="kw">function</span> extractComuna(feature) {
+  <span class="kw">const</span> context = feature.context ?? []
+  <span class="kw">const</span> byPrefix = (prefix) => context.find((e) => e.id.startsWith(prefix))?.text ?? <span class="kw">null</span>
+
+  <span class="kw">if</span> (feature.place_type.includes(<span class="str">'place'</span>)) <span class="kw">return</span> feature.text
+  <span class="kw">return</span> byPrefix(<span class="str">'place'</span>) ?? byPrefix(<span class="str">'locality'</span>) ?? byPrefix(<span class="str">'neighborhood'</span>) ?? <span class="kw">null</span>
+}</code></pre>
+      </div>
+      <p style="margin-top:14px">Guardar la comuna en su propia columna (en vez de solo la dirección completa como texto) es lo que permite ofrecer un filtro real de "solo espacios en Providencia" en Explorar — un dato estructurado sirve para filtrar; un párrafo de texto libre no.</p>
+      <p style="margin-top:12px">Los mapas se dibujan con <code>mapbox-gl</code> directamente (sin envoltorios de React como <code>react-map-gl</code>), cargados dinámicamente con <code>next/dynamic({ ssr:false })</code> porque la librería depende del navegador y no puede pre-renderizarse en el servidor.</p>
+    </section>
+
+    <section id="precio">
+      <div class="sec-head"><span class="n">12</span><h2>Motor de precio dinámico</h2></div>
+      <p class="lede">Un servicio en Java, separado del backend principal, que sugiere cuánto cobrar por hora — no con un modelo entrenado (no hay suficiente historial de reservas todavía para que eso tenga sentido), sino con una <b>heurística explicable</b>: parte de un precio base observable y lo ajusta con reglas claras.</p>
+      <div class="table-wrap">
+      <table class="spec">
+        <tr><th>Paso</th><th>Regla</th></tr>
+        <tr><td>Precio base</td><td>Promedio de espacios publicados en la misma comuna; si no hay, el precio actual del espacio; si tampoco, un valor por defecto.</td></tr>
+        <tr><td>Ocupación</td><td>&gt;70% reservado → <code>+15%</code> · &gt;40% → <code>+5%</code> · &lt;15% → <code>−10%</code></td></tr>
+        <tr><td>Horario</td><td>Hora punta entre semana (8–10 / 18–20h) → <code>+10%</code> · fin de semana de día → <code>+5%</code> · madrugada → <code>−10%</code></td></tr>
+        <tr><td>Límite</td><td>El resultado se acota entre 0.7× y 1.5× el precio base, para que nunca sugiera algo absurdo.</td></tr>
+      </table>
+      </div>
+      <div class="example">
+        <div class="row"><span>Precio base (comuna)</span><span>$1.000</span></div>
+        <div class="row"><span>Ocupación alta</span><span>+15%</span></div>
+        <div class="row"><span>Hora punta</span><span>+10%</span></div>
+        <div class="row total"><span>Precio sugerido</span><span>$1.250</span></div>
+      </div>
+      <div class="code">
+        <div class="file">engines · pricing/PricingService.java</div>
+        <pre><code><span class="kw">double</span> multiplier = <span class="num">1</span> + occupancyAdjustment + timeAdjustment;
+multiplier = Math.max(minMultiplier, Math.min(maxMultiplier, multiplier));
+<span class="kw">int</span> suggested = (<span class="kw">int</span>) Math.round(base * multiplier);</code></pre>
+      </div>
+      <div class="callout warn">
+        <b>Bug real: hora punta calculada en la zona equivocada</b>
+        Jackson (el serializador JSON de Spring) normaliza por defecto una fecha con offset a la zona horaria del servidor antes de que la lógica la lea — un espacio a las 9am en Chile podía leerse como otra hora. Se resolvió recibiendo la fecha como texto y parseándola manualmente con <code>OffsetDateTime.parse()</code>, sin dejar que el framework la reinterprete.
+      </div>
+    </section>
+
+    <section id="ruta">
+      <div class="sec-head"><span class="n">13</span><h2>Motor de optimización de ruta</h2></div>
+      <p class="lede">El segundo servicio en Java no calcula rutas desde cero — orquesta las APIs de Mapbox que sí resuelven el problema real de enrutamiento vial, y expone dos operaciones distintas según la pregunta que se está haciendo:</p>
+      <div class="table-wrap">
+      <table class="spec">
+        <tr><th>Endpoint</th><th>Pregunta que responde</th><th>API de Mapbox</th></tr>
+        <tr><td><code>/api/route/rank</code></td><td>"¿Cuál de estos espacios me queda más cerca en tiempo real de viaje?"</td><td>Matrix (hasta 24 destinos por consulta)</td></tr>
+        <tr><td><code>/api/route/directions</code></td><td>"¿Cómo llego exactamente al que ya elegí?"</td><td>Directions (ruta, distancia, pasos)</td></tr>
+      </table>
+      </div>
+      <p style="margin-top:14px">La geometría de la ruta se devuelve como un string simple <code>"lng,lat;lng,lat;..."</code> en vez de GeoJSON completo — evita depender de una librería de tipos solo para pasar coordenadas, y el frontend la separa con un <code>split</code> para dibujar la línea en el mapa.</p>
+      <div class="callout good">
+        <b>Probado con coordenadas reales</b>
+        Se consultó la API real de Mapbox con puntos de Santiago (Providencia, Ñuñoa, Las Condes): el ranking ordenó correctamente por tiempo de viaje real, no por distancia en línea recta — un espacio "más lejos" en el mapa puede ganar si el camino es más directo.
+      </div>
+    </section>
+
+    <section id="separacion">
+      <div class="sec-head"><span class="n">14</span><h2>Por qué los motores están en un solo servicio Java</h2></div>
+      <p>Precio y ruta son dos dominios distintos, pero se optan por vivir en <b>una sola aplicación Spring Boot</b> (dos paquetes internos, <code>pricing</code> y <code>routing</code>) en vez de dos microservicios separados. Para el alcance de este proyecto, correr dos procesos, dos puertos y dos despliegues no compra nada — la complejidad operativa de microservicios se justifica cuando equipos distintos escalan cada servicio por separado, que no es el caso aquí.</p>
+      <p style="margin-top:12px">Next.js nunca llama a estos motores desde el navegador: la llamada ocurre en un Server Action, servidor-a-servidor. Eso evita tener que configurar CORS y mantiene a Mapbox y a la lógica de negocio fuera del alcance del cliente.</p>
+    </section>
+
+    <section id="seguridad">
+      <div class="sec-head"><span class="n">15</span><h2>Seguridad — resumen de decisiones</h2></div>
+      <ul>
+        <li>Contraseñas con <b>bcrypt</b> (nunca texto plano, nunca reversible).</li>
+        <li>Sesiones por <b>token opaco + hash</b>: la base de datos nunca contiene un secreto usable directamente.</li>
+        <li>Cookies <code>httpOnly</code> + <code>secure</code> en producción — inaccesibles desde JavaScript del navegador.</li>
+        <li>Validación de <b>todo</b> input con Zod antes de tocar la base de datos, en cada Server Action.</li>
+        <li>Transacciones <code>SERIALIZABLE</code> donde una condición de carrera pudiera vender el mismo espacio dos veces.</li>
+        <li>Ningún motor en Java tiene credenciales de base de datos ni acceso directo a Postgres.</li>
+      </ul>
+    </section>
+
+  </article>
+</main>
+
+<footer>
+  <div class="wrap">estacionando — documentación técnica interna, generada tras el primer despliegue en vivo. No es material para distribuir públicamente.</div>
+</footer>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  var btn = document.getElementById('theme-toggle');
+  var icon = document.getElementById('theme-icon');
+  var label = document.getElementById('theme-label');
+
+  var SUN = '<circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path>';
+  var MOON = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"></path>';
+
+  var stored = null;
+  try { stored = localStorage.getItem('estacionando-theme'); } catch (e) {}
+  if (stored === 'light' || stored === 'dark') root.setAttribute('data-theme', stored);
+
+  function isDark() {
+    var attr = root.getAttribute('data-theme');
+    if (attr === 'dark') return true;
+    if (attr === 'light') return false;
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  }
+
+  function sync() {
+    var dark = isDark();
+    icon.innerHTML = dark ? SUN : MOON;
+    label.textContent = dark ? 'Modo claro' : 'Modo oscuro';
+  }
+  sync();
+
+  btn.addEventListener('click', function () {
+    var next = isDark() ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    try { localStorage.setItem('estacionando-theme', next); } catch (e) {}
+    sync();
+  });
+})();
+</script>
+
+</body>
+</html>

@@ -25,6 +25,7 @@ model User {
   reviewsReceived      Review[]              @relation("ReviewsReceived")
   notifications        Notification[]
   identityVerification IdentityVerification?
+  assignedTasks        Task[]
 
   @@map("users")
 }
@@ -216,4 +217,21 @@ model IdentityVerification {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("identity_verifications")
+}
+
+/// Admin-only project roadmap checklist (Panel de administración → Tareas Pendientes).
+/// Not tied to any product feature — internal task tracking for the team.
+model Task {
+  id           String   @id @default(uuid())
+  epic         String
+  title        String
+  order        Int      @default(0)
+  done         Boolean  @default(false)
+  assignedToId String?  @map("assigned_to_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  assignedTo User? @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  @@map("tasks")
 }

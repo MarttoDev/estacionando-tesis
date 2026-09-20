@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Diagrama de componentes — estado</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --bg:oklch(0.965 0.012 250);
+    --surface:oklch(1 0 0);
+    --surface-2:oklch(0.94 0.015 250);
+    --ink:oklch(0.16 0.025 255);
+    --muted:oklch(0.52 0.03 255);
+    --line:oklch(0.89 0.02 250);
+    --accent:oklch(0.55 0.19 255);
+    --accent-soft:oklch(0.55 0.19 255 / 12%);
+    --good:oklch(0.6 0.14 155);
+    --good-soft:oklch(0.6 0.14 155 / 14%);
+    --warn:oklch(0.6 0.16 70);
+    --warn-soft:oklch(0.6 0.16 70 / 14%);
+    --shadow: 0 1px 2px rgba(18,20,28,.04), 0 10px 28px -14px rgba(18,20,28,.14);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:oklch(0.17 0.02 255); --surface:oklch(0.22 0.02 255); --surface-2:oklch(0.27 0.02 255);
+      --ink:oklch(0.95 0.01 250); --muted:oklch(0.65 0.02 250); --line:oklch(0.32 0.02 255);
+      --accent:oklch(0.55 0.19 255); --accent-soft:oklch(0.55 0.19 255 / 18%);
+      --good:oklch(0.72 0.16 155); --good-soft:oklch(0.72 0.16 155 / 16%);
+      --warn:oklch(0.75 0.16 70); --warn-soft:oklch(0.75 0.16 70 / 16%);
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 14px 32px -16px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:oklch(0.17 0.02 255); --surface:oklch(0.22 0.02 255); --surface-2:oklch(0.27 0.02 255);
+    --ink:oklch(0.95 0.01 250); --muted:oklch(0.65 0.02 250); --line:oklch(0.32 0.02 255);
+    --accent:oklch(0.55 0.19 255); --accent-soft:oklch(0.55 0.19 255 / 18%);
+    --good:oklch(0.72 0.16 155); --good-soft:oklch(0.72 0.16 155 / 16%);
+    --warn:oklch(0.75 0.16 70); --warn-soft:oklch(0.75 0.16 70 / 16%);
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 14px 32px -16px rgba(0,0,0,.6);
+  }
+
+  *{box-sizing:border-box}
+  body{ margin:0; background:var(--bg); color:var(--ink); font-family:'Geist', ui-sans-serif, system-ui, sans-serif; line-height:1.6; }
+  h1,h2{ font-family:'Geist', ui-sans-serif, system-ui, sans-serif; text-wrap:balance; margin:0; }
+  code, .mono{ font-family:'Geist Mono', ui-monospace, 'SFMono-Regular', monospace; }
+  p{ margin:0 }
+  a{ color:var(--accent) }
+  .wrap{ max-width:1180px; margin:0 auto; padding-inline:20px }
+
+  header.hero{ border-bottom:1px solid var(--line); background:var(--surface); }
+  header.hero .wrap{ padding-block:28px 22px }
+  .kicker{ font-size:.84rem; color:var(--muted); }
+  header.hero h1{ font-size:clamp(1.5rem, 4vw, 2.1rem); font-weight:800; letter-spacing:-.02em; margin-top:8px; }
+  header.hero p.tagline{ margin-top:10px; font-size:.98rem; color:var(--muted); max-width:72ch; }
+
+  nav.site-links{ margin-top:18px; display:flex; gap:4px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  .site-link{ padding:9px 4px; margin-bottom:-1px; margin-right:14px; font-size:.88rem; font-weight:500; text-decoration:none; color:var(--muted); border-bottom:2px solid transparent; }
+  .site-link.active{ color:var(--ink); border-bottom-color:var(--accent); }
+  .site-link:hover:not(.active){ color:var(--ink); }
+
+  main{ padding-block:28px 64px }
+
+  figure{ margin:0; background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:20px; box-shadow:var(--shadow); }
+  figure svg{ width:100%; height:auto; display:block; }
+  figcaption{ margin-top:14px; font-size:.86rem; color:var(--muted); max-width:80ch; }
+
+  .legend{ margin-top:18px; display:flex; flex-wrap:wrap; gap:16px; }
+  .legend-item{ display:flex; align-items:center; gap:8px; font-size:.86rem; color:var(--muted); }
+  .swatch{ width:26px; height:0; border-top:3px solid var(--ink); flex-shrink:0; }
+  .swatch.pending{ border-top:3px dashed var(--warn); }
+  .swatch.realtime{ border-top:3px dashed var(--accent); }
+
+  section.notes{ margin-top:36px; }
+  section.notes h2{ font-size:1.15rem; margin-bottom:12px; }
+  section.notes ul{ margin:0; padding-left:1.2em; font-size:.94rem; color:var(--ink); max-width:72ch; }
+  section.notes li{ margin-top:8px; line-height:1.6; }
+  section.notes li b{ color:var(--ink); }
+  section.notes .pending-tag{ color:var(--warn); font-weight:600; }
+
+  footer{ border-top:1px solid var(--line); padding-block:20px; font-size:.82rem; color:var(--muted); margin-top:20px; }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <p class="kicker">Documentación técnica — arquitectura</p>
+    <h1>Diagrama de componentes — estado actual</h1>
+    <p class="tagline">Cómo se conectan las piezas del sistema hoy, en producción, y exactamente en qué punto se enchufaría cada integración que todavía falta.</p>
+    <nav class="site-links">
+      <a class="site-link" href="index.html">Cómo funciona estacionando</a>
+      <a class="site-link active" href="diagrama-componentes.html">Diagrama de componentes</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <figure>
+    <svg viewBox="0 0 1300 560" role="img" aria-label="Diagrama de componentes de estacionando: el navegador llama a Next.js en Vercel vía Server Actions; Next.js habla con Prisma y PostgreSQL en Supabase, con Supabase Storage para fotos, y por HTTP interno con el servicio Java en Render, que a su vez llama a las APIs de Mapbox junto con Next.js. Un cambio en PostgreSQL dispara Supabase Realtime, que empuja el aviso de vuelta al navegador por websocket. A la derecha, cuatro integraciones pendientes — pago, email, KYC y reseñas — se conectarían directo a Next.js pero hoy no tienen ninguna línea sólida.">
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+        </marker>
+        <marker id="arrow-warn" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="var(--warn)"/>
+        </marker>
+        <marker id="arrow-accent" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"/>
+        </marker>
+      </defs>
+
+      <g fill="none" stroke="currentColor" stroke-width="1.6" font-family="Geist, sans-serif">
+
+        <!-- ===== LIVE ARROWS (drawn first, under the boxes) ===== -->
+
+        <!-- Navegador -> Next.js -->
+        <line x1="410" y1="72" x2="410" y2="106" marker-end="url(#arrow)"/>
+        <text x="422" y="93" fill="currentColor" stroke="none" font-size="12">Server Action (HTTPS)</text>
+
+        <!-- Next.js -> Prisma / Storage / Java Engines -->
+        <line x1="270" y1="202" x2="180" y2="248" marker-end="url(#arrow)"/>
+        <text x="180" y="228" fill="currentColor" stroke="none" font-size="12" text-anchor="middle">Prisma Client</text>
+
+        <line x1="410" y1="202" x2="400" y2="248" marker-end="url(#arrow)"/>
+        <text x="465" y="228" fill="currentColor" stroke="none" font-size="12" text-anchor="middle">sube / sirve fotos</text>
+
+        <line x1="560" y1="202" x2="660" y2="248" marker-end="url(#arrow)"/>
+        <text x="700" y="222" fill="currentColor" stroke="none" font-size="12" text-anchor="middle">HTTP interno</text>
+        <text x="700" y="236" fill="currentColor" stroke="none" font-size="12" text-anchor="middle">(servidor↔servidor)</text>
+
+        <!-- Prisma -> Postgres -->
+        <line x1="165" y1="316" x2="170" y2="352" marker-end="url(#arrow)"/>
+        <text x="185" y="338" fill="currentColor" stroke="none" font-size="12">SQL tipado</text>
+
+        <!-- Java Engines -> Mapbox -->
+        <line x1="670" y1="316" x2="680" y2="352" marker-end="url(#arrow)"/>
+        <text x="695" y="338" fill="currentColor" stroke="none" font-size="12">Directions / Matrix</text>
+
+        <!-- Next.js -> Mapbox (geocoding), routed clear of Java Engines on the right margin -->
+        <polyline points="630,118 800,118 800,352 770,352" marker-end="url(#arrow)"/>
+        <text x="715" y="112" fill="currentColor" stroke="none" font-size="12" text-anchor="middle">Geocoding API</text>
+
+        <!-- Postgres -> Realtime -->
+        <line x1="170" y1="432" x2="170" y2="466" marker-end="url(#arrow-accent)" stroke="var(--accent)"/>
+        <text x="185" y="454" fill="var(--accent)" stroke="none" font-size="12">INSERT en change_events</text>
+
+        <!-- Realtime -> Navegador (feedback loop, left margin) -->
+        <polyline points="60,493 26,493 26,44 276,44" marker-end="url(#arrow-accent)" stroke="var(--accent)"/>
+        <text x="30" y="90" fill="var(--accent)" stroke="none" font-size="12">push (websocket)</text>
+
+        <!-- ===== LIVE BOXES ===== -->
+
+        <rect x="280" y="16" width="260" height="56" rx="10"/>
+        <text x="410" y="40" text-anchor="middle" stroke="none" fill="currentColor" font-size="14" font-weight="600">Navegador</text>
+        <text x="410" y="58" text-anchor="middle" stroke="none" fill="currentColor" font-size="11" opacity="0.7">cliente · anfitrión · admin</text>
+
+        <rect x="190" y="106" width="440" height="96" rx="12" stroke-width="2"/>
+        <text x="410" y="136" text-anchor="middle" stroke="none" fill="currentColor" font-size="15" font-weight="700">Next.js (Vercel)</text>
+        <text x="410" y="156" text-anchor="middle" stroke="none" fill="currentColor" font-size="11" opacity="0.75">Server Actions · Server Components</text>
+        <text x="410" y="172" text-anchor="middle" stroke="none" fill="currentColor" font-size="11" opacity="0.75">sesiones propias (token + hash)</text>
+
+        <rect x="80" y="248" width="170" height="64" rx="10"/>
+        <text x="165" y="276" text-anchor="middle" stroke="none" fill="currentColor" font-size="13" font-weight="600">Prisma</text>
+        <text x="165" y="292" text-anchor="middle" stroke="none" fill="currentColor" font-size="10" opacity="0.7">ORM</text>
+
+        <rect x="300" y="248" width="200" height="64" rx="10"/>
+        <text x="400" y="276" text-anchor="middle" stroke="none" fill="currentColor" font-size="13" font-weight="600">Supabase Storage</text>
+        <text x="400" y="292" text-anchor="middle" stroke="none" fill="currentColor" font-size="10" opacity="0.7">fotos de espacios y avatares</text>
+
+        <rect x="560" y="248" width="220" height="64" rx="10"/>
+        <text x="670" y="272" text-anchor="middle" stroke="none" fill="currentColor" font-size="13" font-weight="600">Java Engines (Render)</text>
+        <text x="670" y="288" text-anchor="middle" stroke="none" fill="currentColor" font-size="10" opacity="0.7">Pricing · Routing — sin base de datos propia</text>
+
+        <rect x="60" y="352" width="220" height="80" rx="10"/>
+        <text x="170" y="382" text-anchor="middle" stroke="none" fill="currentColor" font-size="13" font-weight="600">PostgreSQL</text>
+        <text x="170" y="398" text-anchor="middle" stroke="none" fill="currentColor" font-size="10" opacity="0.7">Supabase</text>
+        <text x="170" y="414" text-anchor="middle" stroke="none" fill="currentColor" font-size="10" opacity="0.7">incluye tabla change_events</text>
+
+        <rect x="560" y="352" width="240" height="80" rx="10"/>
+        <text x="680" y="382" text-anchor="middle" stroke="none" fill="currentColor" font-size="13" font-weight="600">Mapbox APIs</text>
+        <text x="680" y="398" text-anchor="middle" stroke="none" fill="currentColor" font-size="10" opacity="0.7">Geocoding · Directions · Matrix</text>
+        <text x="680" y="414" text-anchor="middle" stroke="none" fill="currentColor" font-size="10" opacity="0.7">servicio externo</text>
+
+        <rect x="60" y="466" width="220" height="54" rx="10" stroke="var(--accent)"/>
+        <text x="170" y="488" text-anchor="middle" stroke="none" fill="var(--accent)" font-size="13" font-weight="600">Supabase Realtime</text>
+        <text x="170" y="504" text-anchor="middle" stroke="none" fill="var(--accent)" font-size="10" opacity="0.8">solo avisa "algo cambió", nunca datos</text>
+
+        <!-- ===== PENDING (dashed) ===== -->
+
+        <text x="1110" y="90" text-anchor="middle" stroke="none" fill="var(--warn)" font-size="12" font-weight="700">PENDIENTE — próxima fase</text>
+
+        <!-- Trunk-and-branch bus: one exit from Next.js, one spine, four branches — kept clear
+             of every live box by running entirely to the right of Mapbox/Java Engines. -->
+        <polyline points="630,185 830,185" stroke="var(--warn)" stroke-dasharray="5 4"/>
+        <line x1="830" y1="140" x2="830" y2="446" stroke="var(--warn)" stroke-dasharray="5 4"/>
+
+        <line x1="830" y1="140" x2="960" y2="140" stroke="var(--warn)" stroke-dasharray="5 4" marker-end="url(#arrow-warn)"/>
+        <text x="895" y="132" text-anchor="middle" fill="var(--warn)" stroke="none" font-size="11">crear pago</text>
+
+        <line x1="830" y1="242" x2="960" y2="242" stroke="var(--warn)" stroke-dasharray="5 4" marker-end="url(#arrow-warn)"/>
+        <text x="895" y="234" text-anchor="middle" fill="var(--warn)" stroke="none" font-size="11">enviar email</text>
+
+        <line x1="830" y1="344" x2="960" y2="344" stroke="var(--warn)" stroke-dasharray="5 4" marker-end="url(#arrow-warn)"/>
+        <text x="895" y="336" text-anchor="middle" fill="var(--warn)" stroke="none" font-size="11">verificar identidad</text>
+
+        <line x1="830" y1="446" x2="960" y2="446" stroke="var(--warn)" stroke-dasharray="5 4" marker-end="url(#arrow-warn)"/>
+        <text x="895" y="438" text-anchor="middle" fill="var(--warn)" stroke="none" font-size="11">guardar reseña</text>
+
+        <rect x="960" y="106" width="300" height="68" rx="10" stroke="var(--warn)" stroke-dasharray="5 4"/>
+        <text x="1110" y="134" text-anchor="middle" stroke="none" fill="var(--warn)" font-size="13" font-weight="600">Proveedor de pago</text>
+        <text x="1110" y="150" text-anchor="middle" stroke="none" fill="var(--warn)" font-size="10" opacity="0.85">ej. Webpay Plus</text>
+
+        <rect x="960" y="208" width="300" height="68" rx="10" stroke="var(--warn)" stroke-dasharray="5 4"/>
+        <text x="1110" y="236" text-anchor="middle" stroke="none" fill="var(--warn)" font-size="13" font-weight="600">Proveedor de email</text>
+        <text x="1110" y="252" text-anchor="middle" stroke="none" fill="var(--warn)" font-size="10" opacity="0.85">ej. Resend</text>
+
+        <rect x="960" y="310" width="300" height="68" rx="10" stroke="var(--warn)" stroke-dasharray="5 4"/>
+        <text x="1110" y="338" text-anchor="middle" stroke="none" fill="var(--warn)" font-size="13" font-weight="600">Proveedor de KYC</text>
+        <text x="1110" y="354" text-anchor="middle" stroke="none" fill="var(--warn)" font-size="10" opacity="0.85">ej. Didit / Truora</text>
+
+        <rect x="960" y="412" width="300" height="68" rx="10" stroke="var(--warn)" stroke-dasharray="5 4"/>
+        <text x="1110" y="440" text-anchor="middle" stroke="none" fill="var(--warn)" font-size="13" font-weight="600">Reseñas</text>
+        <text x="1110" y="456" text-anchor="middle" stroke="none" fill="var(--warn)" font-size="10" opacity="0.85">tabla reviews, sin UI todavía</text>
+
+      </g>
+    </svg>
+    <figcaption>El navegador nunca llama directo al servicio Java ni a Mapbox — todo pasa por Next.js en el servidor. Las cuatro cajas punteadas de la derecha son las únicas piezas del diagrama que hoy no tienen ninguna línea sólida: existen como tabla en la base de datos (Reseñas) o como punto de conexión ya identificado (Pagos, Email, KYC), pero ningún dato fluye todavía por esas flechas.</figcaption>
+  </figure>
+
+  <div class="legend">
+    <div class="legend-item"><span class="swatch"></span> En producción — el dato realmente fluye por ahí</div>
+    <div class="legend-item"><span class="swatch realtime"></span> Canal de Realtime (websocket, solo avisos)</div>
+    <div class="legend-item"><span class="swatch pending"></span> Pendiente — conexión identificada, todavía sin construir</div>
+  </div>
+
+  <section class="notes">
+    <h2>Lectura rápida del diagrama</h2>
+    <ul>
+      <li><b>Un solo punto de entrada al servidor.</b> El navegador solo le habla a Next.js. Ni el servicio Java ni Mapbox ni Supabase Storage son alcanzables directo desde el cliente — todo pasa server-a-server, así ningún token ni credencial queda expuesto en el navegador.</li>
+      <li><b>Dos caminos hacia Mapbox.</b> Next.js lo llama directo para geocodificar direcciones; el servicio Java lo llama por su cuenta para calcular rutas y tiempos de viaje. Son dos llamadas independientes al mismo proveedor externo, no una relación en cadena.</li>
+      <li><b>El único canal que no pasa por una petición normal es Realtime.</b> Cuando algo cambia en PostgreSQL, Supabase empuja un aviso directo al navegador por websocket — pero ese aviso nunca lleva datos, solo dice "algo cambió"; el navegador le vuelve a pedir los datos reales a Next.js por el camino de siempre.</li>
+      <li><b>Las cuatro cajas punteadas son literalmente lo que falta</b> para cerrar el ciclo completo del marketplace: <span class="pending-tag">Pagos</span> (dinero real), <span class="pending-tag">Email</span> (avisos), <span class="pending-tag">KYC</span> (confianza), <span class="pending-tag">Reseñas</span> (reputación). Cada una se conecta en el punto exacto donde Next.js ya ejecuta la acción correspondiente — no requieren rediseñar nada de lo que ya existe, solo agregar la llamada.</li>
+    </ul>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">estacionando — diagrama de componentes, estado al 20 de septiembre de 2026. Ver también <a href="index.html">cómo funciona cada decisión</a>.</div>
+</footer>
+
+</body>
+</html>

@@ -46,17 +46,26 @@ export type AdminStats = {
   activeReservations: number
 }
 
+export type AdminTaskRow = {
+  id: string
+  epic: string
+  title: string
+  done: boolean
+  assignedTo: { id: string; name: string } | null
+}
+
 export type AdminDashboardData = {
   stats: AdminStats
   users: AdminUserRow[]
   spots: AdminSpotRow[]
   activeReservations: AdminReservationRow[]
+  tasks: AdminTaskRow[]
 }
 
 export async function getAdminDashboardData(): Promise<AdminDashboardData> {
   const now = new Date()
 
-  const [users, spots, totalReservations, activeReservationRows] = await Promise.all([
+  const [users, spots, totalReservations, activeReservationRows, tasks] = await Promise.all([
     prisma.user.findMany({
       include: { _count: { select: { parkingSpots: true, reservations: true } } },
       orderBy: { createdAt: 'desc' },
@@ -70,6 +79,10 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
       where: { status: 'CONFIRMED', endTime: { gt: now } },
       include: { spot: { include: { owner: true } }, user: true },
       orderBy: { startTime: 'asc' },
+    }),
+    prisma.task.findMany({
+      include: { assignedTo: { select: { id: true, name: true } } },
+      orderBy: { order: 'asc' },
     }),
   ])
 
@@ -119,6 +132,13 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
       endTime: r.endTime,
       totalPrice: r.totalPrice,
       confirmationCode: r.confirmationCode,
+    })),
+    tasks: tasks.map((t) => ({
+      id: t.id,
+      epic: t.epic,
+      title: t.title,
+      done: t.done,
+      assignedTo: t.assignedTo ? { id: t.assignedTo.id, name: t.assignedTo.name } : null,
     })),
   }
 }
