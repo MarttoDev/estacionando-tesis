@@ -146,7 +146,9 @@ export async function cancelReservationAdminAction(_prevState: AdminActionState,
   return { success: true }
 }
 
-export async function toggleTaskAction(_prevState: AdminActionState, formData: FormData): Promise<AdminActionState> {
+const TASK_STATUSES = ['TODO', 'IN_PROGRESS', 'DONE'] as const
+
+export async function moveTaskAction(_prevState: AdminActionState, formData: FormData): Promise<AdminActionState> {
   const caller = await getCurrentUser()
   if (!caller || !caller.isAdmin) {
     return { error: 'No tienes permisos de administrador' }
@@ -157,12 +159,17 @@ export async function toggleTaskAction(_prevState: AdminActionState, formData: F
     return { error: 'Tarea inválida' }
   }
 
+  const status = formData.get('status')
+  if (typeof status !== 'string' || !TASK_STATUSES.includes(status as (typeof TASK_STATUSES)[number])) {
+    return { error: 'Columna inválida' }
+  }
+
   const task = await prisma.task.findUnique({ where: { id: taskId } })
   if (!task) {
     return { error: 'Tarea no encontrada' }
   }
 
-  await prisma.task.update({ where: { id: taskId }, data: { done: formData.get('done') === 'true' } })
+  await prisma.task.update({ where: { id: taskId }, data: { status: status as (typeof TASK_STATUSES)[number] } })
   await notifyChange('tasks')
   return { success: true }
 }

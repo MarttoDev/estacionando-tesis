@@ -3,12 +3,12 @@
 import { startTransition, useActionState, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Ban, Building2, CalendarClock, ChevronDown, ListChecks, LogOut, ShieldCheck, Trash2, UserPlus, Users } from 'lucide-react'
+import { Ban, Building2, CalendarClock, ChevronDown, ChevronLeft, ChevronRight, GripVertical, ListChecks, LogOut, ShieldCheck, Trash2, UserPlus, Users } from 'lucide-react'
 import { BrandMark } from './brand-mark'
 import { ThemeToggle } from './theme-toggle'
 import { AdminConfirmModal } from './admin-confirm-modal'
 import { logoutAction } from '@/lib/auth/actions'
-import { promoteAdminAction, demoteAdminAction, deleteSpotAdminAction, deleteUserAdminAction, cancelReservationAdminAction, toggleTaskAction, assignTaskAction } from '@/lib/admin/actions'
+import { promoteAdminAction, demoteAdminAction, deleteSpotAdminAction, deleteUserAdminAction, cancelReservationAdminAction, moveTaskAction, assignTaskAction } from '@/lib/admin/actions'
 import { useRealtimeRefresh } from '@/hooks/use-realtime-refresh'
 import type { AdminDashboardData } from '@/lib/admin/queries'
 import type { SessionUser } from '@/lib/auth/types'
@@ -487,55 +487,109 @@ function AdminCard({ admin, currentUserId }: { admin: AdminDashboardData['users'
   )
 }
 
+type TaskStatus = AdminDashboardData['tasks'][number]['status']
+
+const TASK_COLUMNS: { status: TaskStatus; label: string }[] = [
+  { status: 'TODO', label: 'Por hacer' },
+  { status: 'IN_PROGRESS', label: 'En progreso' },
+  { status: 'DONE', label: 'Hecho' },
+]
+
 function TareasTab({ tasks, users }: { tasks: AdminDashboardData['tasks']; users: AdminDashboardData['users'] }) {
+  const router = useRouter()
   const admins = users.filter((u) => u.isAdmin).map((u) => ({ id: u.id, name: u.name }))
-  const epics = Array.from(new Set(tasks.map((t) => t.epic)))
-  const totalDone = tasks.filter((t) => t.done).length
+  const doneCount = tasks.filter((t) => t.status === 'DONE').length
+  const [draggedId, setDraggedId] = useState<string | null>(null)
+  const [dragOverStatus, setDragOverStatus] = useState<TaskStatus | null>(null)
+  const [boardError, setBoardError] = useState<string | null>(null)
+
+  async function moveTo(taskId: string, status: TaskStatus) {
+    const formData = new FormData()
+    formData.set('taskId', taskId)
+    formData.set('status', status)
+    const result = await moveTaskAction(undefined, formData)
+    if (result && 'error' in result) {
+      setBoardError(result.error)
+      return
+    }
+    setBoardError(null)
+    router.refresh()
+  }
+
+  function handleDrop(status: TaskStatus) {
+    setDragOverStatus(null)
+    const task = tasks.find((t) => t.id === draggedId)
+    if (task && task.status !== status) moveTo(task.id, status)
+    setDraggedId(null)
+  }
 
   return (
     <div className="flex min-w-0 flex-col gap-5">
       <div className="rounded-3xl border border-border bg-card p-5">
         <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2"><ListChecks className="size-4 text-accent" /><h2 className="text-lg font-semibold">Progreso del roadmap</h2></div>
-          <span className="shrink-0 text-sm tabular-nums text-muted-foreground">{totalDone} / {tasks.length}</span>
+          <div className="flex items-center gap-2"><ListChecks className="size-4 text-accent" /><h2 className="text-lg font-semibold">Tablero kanban del roadmap</h2></div>
+          <span className="shrink-0 text-sm tabular-nums text-muted-foreground">{doneCount} / {tasks.length}</span>
         </div>
         <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
-          <div className="h-full rounded-full bg-accent transition-[width]" style={{ width: `${tasks.length ? (totalDone / tasks.length) * 100 : 0}%` }} />
+          <div className="h-full rounded-full bg-accent transition-[width]" style={{ width: `${tasks.length ? (doneCount / tasks.length) * 100 : 0}%` }} />
         </div>
+        {boardError && <p className="mt-3 text-sm text-destructive">{boardError}</p>}
       </div>
 
       {tasks.length === 0 && <p className="rounded-3xl border border-border bg-card p-6 text-sm text-muted-foreground">No hay tareas cargadas todavía.</p>}
 
-      {epics.map((epic) => {
-        const epicTasks = tasks.filter((t) => t.epic === epic)
-        const epicDone = epicTasks.filter((t) => t.done).length
-        return (
-          <div key={epic} className="min-w-0 rounded-3xl border border-border bg-card p-5">
-            <div className="flex items-center justify-between gap-3">
-              <h3 className="text-sm font-semibold">{epic}</h3>
-              <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{epicDone}/{epicTasks.length}</span>
-            </div>
-            <div className="mt-1 flex flex-col">
-              {epicTasks.map((task) => (
-                <TaskRow key={task.id} task={task} admins={admins} />
-              ))}
-            </div>
-          </div>
-        )
-      })}
+      {tasks.length > 0 && (
+        <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-3">
+          {TASK_COLUMNS.map((column, columnIndex) => {
+            const columnTasks = tasks.filter((t) => t.status === column.status)
+            return (
+              <div
+                key={column.status}
+                onDragOver={(e) => { e.preventDefault(); setDragOverStatus(column.status) }}
+                onDragLeave={() => setDragOverStatus((s) => (s === column.status ? null : s))}
+                onDrop={(e) => { e.preventDefault(); handleDrop(column.status) }}
+                className={`min-w-0 rounded-3xl border bg-card p-4 transition-colors ${dragOverStatus === column.status ? 'border-accent bg-accent/5' : 'border-border'}`}
+              >
+                <div className="flex items-center justify-between gap-2 px-1 pb-3">
+                  <h3 className="text-sm font-semibold">{column.label}</h3>
+                  <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs tabular-nums text-muted-foreground">{columnTasks.length}</span>
+                </div>
+                <div className="flex min-h-[60px] flex-col gap-2">
+                  {columnTasks.length === 0 && <p className="rounded-xl border border-dashed border-border px-3 py-6 text-center text-xs text-muted-foreground">Sin tareas acá</p>}
+                  {columnTasks.map((task) => (
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      admins={admins}
+                      columnIndex={columnIndex}
+                      onDragStart={() => setDraggedId(task.id)}
+                      onDragEnd={() => setDraggedId(null)}
+                      onMove={(status) => moveTo(task.id, status)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
 
-function TaskRow({ task, admins }: { task: AdminDashboardData['tasks'][number]; admins: { id: string; name: string }[] }) {
+function TaskCard({
+  task, admins, columnIndex, onDragStart, onDragEnd, onMove,
+}: {
+  task: AdminDashboardData['tasks'][number]
+  admins: { id: string; name: string }[]
+  columnIndex: number
+  onDragStart: () => void
+  onDragEnd: () => void
+  onMove: (status: TaskStatus) => void
+}) {
   const router = useRouter()
   const [expanded, setExpanded] = useState(false)
-  const [toggleState, toggleFormAction] = useActionState(toggleTaskAction, undefined)
   const [assignState, assignFormAction] = useActionState(assignTaskAction, undefined)
-
-  useEffect(() => {
-    if (toggleState && 'success' in toggleState) router.refresh()
-  }, [toggleState, router])
 
   useEffect(() => {
     if (assignState && 'success' in assignState) {
@@ -543,13 +597,6 @@ function TaskRow({ task, admins }: { task: AdminDashboardData['tasks'][number]; 
       setExpanded(false)
     }
   }, [assignState, router])
-
-  function handleToggle(nextDone: boolean) {
-    const formData = new FormData()
-    formData.set('taskId', task.id)
-    formData.set('done', String(nextDone))
-    startTransition(() => toggleFormAction(formData))
-  }
 
   function handleAssign(userId: string | null) {
     const formData = new FormData()
@@ -559,49 +606,56 @@ function TaskRow({ task, admins }: { task: AdminDashboardData['tasks'][number]; 
   }
 
   return (
-    <div className="border-b border-border py-3 last:border-0">
-      <div className="flex items-start gap-3">
-        <input
-          type="checkbox"
-          checked={task.done}
-          onChange={(e) => handleToggle(e.target.checked)}
-          aria-label={task.done ? `Marcar "${task.title}" como pendiente` : `Marcar "${task.title}" como hecha`}
-          className="mt-0.5 size-4 shrink-0 accent-accent"
-        />
-        <p className={`min-w-0 flex-1 text-sm ${task.done ? 'text-muted-foreground line-through' : ''}`}>{task.title}</p>
+    <div draggable onDragStart={onDragStart} onDragEnd={onDragEnd} className="cursor-grab rounded-2xl border border-border bg-background p-3 active:cursor-grabbing">
+      <div className="flex items-start gap-2">
+        <GripVertical className="mt-0.5 size-3.5 shrink-0 text-muted-foreground/50" />
+        <div className="min-w-0 flex-1">
+          <span className="inline-block rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">{task.epic}</span>
+          <p className="mt-1.5 text-sm">{task.title}</p>
+        </div>
+      </div>
+
+      <div className="mt-2.5 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1">
+          <button type="button" disabled={columnIndex === 0} onClick={() => onMove(TASK_COLUMNS[columnIndex - 1].status)} aria-label="Mover a la columna anterior" className="rounded-full border border-border p-1 text-muted-foreground hover:bg-muted disabled:opacity-30 disabled:hover:bg-transparent">
+            <ChevronLeft className="size-3.5" />
+          </button>
+          <button type="button" disabled={columnIndex === TASK_COLUMNS.length - 1} onClick={() => onMove(TASK_COLUMNS[columnIndex + 1].status)} aria-label="Mover a la siguiente columna" className="rounded-full border border-border p-1 text-muted-foreground hover:bg-muted disabled:opacity-30 disabled:hover:bg-transparent">
+            <ChevronRight className="size-3.5" />
+          </button>
+        </div>
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
-          className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted"
+          className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-muted"
         >
           {task.assignedTo ? task.assignedTo.name.split(' ')[0] : 'Asignar'}
-          <ChevronDown className={`size-3.5 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+          <ChevronDown className={`size-3 transition-transform ${expanded ? 'rotate-180' : ''}`} />
         </button>
       </div>
 
       {expanded && (
-        <div className="ml-7 mt-2 flex flex-wrap gap-2 rounded-xl bg-muted/50 p-3">
+        <div className="mt-2 flex flex-wrap gap-1.5 rounded-xl bg-muted/50 p-2.5">
           {admins.length === 0 && <p className="text-xs text-muted-foreground">No hay otros administradores para asignar todavía.</p>}
           {admins.map((admin) => (
             <button
               key={admin.id}
               type="button"
               onClick={() => handleAssign(admin.id)}
-              className={`rounded-full border px-3 py-1.5 text-xs font-medium ${task.assignedTo?.id === admin.id ? 'border-accent bg-accent/15 text-accent' : 'border-border text-muted-foreground hover:bg-muted'}`}
+              className={`rounded-full border px-2.5 py-1 text-xs font-medium ${task.assignedTo?.id === admin.id ? 'border-accent bg-accent/15 text-accent' : 'border-border text-muted-foreground hover:bg-muted'}`}
             >
               {admin.name}
             </button>
           ))}
           {task.assignedTo && (
-            <button type="button" onClick={() => handleAssign(null)} className="rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:border-destructive hover:text-destructive">
-              Quitar asignación
+            <button type="button" onClick={() => handleAssign(null)} className="rounded-full border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground hover:border-destructive hover:text-destructive">
+              Quitar
             </button>
           )}
         </div>
       )}
 
-      {toggleState && 'error' in toggleState && <p className="ml-7 mt-1 text-xs text-destructive">{toggleState.error}</p>}
-      {assignState && 'error' in assignState && <p className="ml-7 mt-1 text-xs text-destructive">{assignState.error}</p>}
+      {assignState && 'error' in assignState && <p className="mt-1.5 text-xs text-destructive">{assignState.error}</p>}
     </div>
   )
 }

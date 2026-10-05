@@ -219,17 +219,24 @@ model IdentityVerification {
   @@map("identity_verifications")
 }
 
-/// Admin-only project roadmap checklist (Panel de administración → Tareas Pendientes).
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+/// Admin-only project roadmap board (Panel de administración → Tareas Pendientes).
+/// Columns are TaskStatus — a real Kanban board, not just a checklist.
 /// Not tied to any product feature — internal task tracking for the team.
 model Task {
-  id           String   @id @default(uuid())
+  id           String     @id @default(uuid())
   epic         String
   title        String
-  order        Int      @default(0)
-  done         Boolean  @default(false)
-  assignedToId String?  @map("assigned_to_id")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  order        Int        @default(0)
+  status       TaskStatus @default(TODO)
+  assignedToId String?    @map("assigned_to_id")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
 
   assignedTo User? @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
 

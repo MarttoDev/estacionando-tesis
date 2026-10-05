@@ -50,7 +50,7 @@ export type AdminTaskRow = {
   id: string
   epic: string
   title: string
-  done: boolean
+  status: 'TODO' | 'IN_PROGRESS' | 'DONE'
   assignedTo: { id: string; name: string } | null
 }
 
@@ -137,7 +137,7 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
       id: t.id,
       epic: t.epic,
       title: t.title,
-      done: t.done,
+      status: t.status,
       assignedTo: t.assignedTo ? { id: t.assignedTo.id, name: t.assignedTo.name } : null,
     })),
   }
