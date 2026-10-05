@@ -92,7 +92,7 @@ export function Profile({
 }
 
 function formatMemberSince(date: Date) {
-  return new Date(date).toLocaleDateString('es-CL', { month: 'long', year: 'numeric' })
+  return new Date(date).toLocaleDateString('es-CL', { month: 'long', year: 'numeric', timeZone: 'America/Santiago' })
 }
 
 function StatCell({ icon: Icon, value, label }: { icon: typeof Car; value: number; label: string }) {

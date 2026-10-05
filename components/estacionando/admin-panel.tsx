@@ -13,8 +13,8 @@ import { useRealtimeRefresh } from '@/hooks/use-realtime-refresh'
 import type { AdminDashboardData } from '@/lib/admin/queries'
 import type { SessionUser } from '@/lib/auth/types'
 
-const dateFormatter = new Intl.DateTimeFormat('es-CL', { day: 'numeric', month: 'short', year: 'numeric' })
-const dateTimeFormatter = new Intl.DateTimeFormat('es-CL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+const dateFormatter = new Intl.DateTimeFormat('es-CL', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'America/Santiago' })
+const dateTimeFormatter = new Intl.DateTimeFormat('es-CL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'America/Santiago' })
 
 type Tab = 'resumen' | 'usuarios' | 'espacios' | 'reservas' | 'administradores' | 'tareas'
 
@@ -210,6 +210,13 @@ function UsuariosTab({ users, currentUserId }: { users: AdminDashboardData['user
   )
 }
 
+function spotStatus(s: AdminDashboardData['spots'][number]) {
+  if (s.isArchived) return { label: 'Archivado', className: 'bg-destructive/10 text-destructive' }
+  if (s.isExpired) return { label: 'Expirado', className: 'bg-warning/15 text-warning' }
+  if (s.isPublished) return { label: 'Publicado', className: 'bg-accent/15 text-accent' }
+  return { label: 'Pausado', className: 'bg-muted text-muted-foreground' }
+}
+
 function EspaciosTab({ spots }: { spots: AdminDashboardData['spots'] }) {
   const [deleting, setDeleting] = useState<{ id: string; title: string } | null>(null)
 
@@ -244,8 +251,8 @@ function EspaciosTab({ spots }: { spots: AdminDashboardData['spots'] }) {
                 <td className="px-5 py-3 text-muted-foreground">{s.comuna ?? '—'}</td>
                 <td className="px-5 py-3 tabular-nums">${s.price.toLocaleString('es-CL')}</td>
                 <td className="px-5 py-3">
-                  <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${s.isArchived ? 'bg-destructive/10 text-destructive' : s.isPublished ? 'bg-accent/15 text-accent' : 'bg-muted text-muted-foreground'}`}>
-                    {s.isArchived ? 'Archivado' : s.isPublished ? 'Publicado' : 'Pausado'}
+                  <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${spotStatus(s).className}`}>
+                    {spotStatus(s).label}
                   </span>
                 </td>
                 <td className="px-5 py-3 tabular-nums">{s.reservationsCount}</td>
@@ -261,8 +268,8 @@ function EspaciosTab({ spots }: { spots: AdminDashboardData['spots'] }) {
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium">{s.title}</p>
-                <span className={`mt-1 inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${s.isArchived ? 'bg-destructive/10 text-destructive' : s.isPublished ? 'bg-accent/15 text-accent' : 'bg-muted text-muted-foreground'}`}>
-                  {s.isArchived ? 'Archivado' : s.isPublished ? 'Publicado' : 'Pausado'}
+                <span className={`mt-1 inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${spotStatus(s).className}`}>
+                  {spotStatus(s).label}
                 </span>
               </div>
               <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />

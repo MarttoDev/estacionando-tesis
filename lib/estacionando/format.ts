@@ -1,23 +1,30 @@
-export const dateFormatter = new Intl.DateTimeFormat('es-CL', { day: 'numeric', month: 'long' })
-export const timeFormatter = new Intl.DateTimeFormat('es-CL', { hour: '2-digit', minute: '2-digit' })
+const SANTIAGO_TZ = 'America/Santiago'
+
+export const dateFormatter = new Intl.DateTimeFormat('es-CL', { day: 'numeric', month: 'long', timeZone: SANTIAGO_TZ })
+export const timeFormatter = new Intl.DateTimeFormat('es-CL', { hour: '2-digit', minute: '2-digit', timeZone: SANTIAGO_TZ })
+
+const dayKeyFormatter = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: SANTIAGO_TZ })
+
+/** Whether two instants fall on the same calendar day in Santiago — never the server's or browser's own timezone. */
+function sameDayInSantiago(a: Date, b: Date) {
+  return dayKeyFormatter.format(a) === dayKeyFormatter.format(b)
+}
 
 export function formatWindow(startTime: Date, endTime: Date) {
   return `${dateFormatter.format(startTime)}, ${timeFormatter.format(startTime)}–${timeFormatter.format(endTime)}`
 }
 
 export function formatReservationRange(startTime: Date, endTime: Date) {
-  const sameDay = startTime.toDateString() === endTime.toDateString()
-  if (sameDay) {
+  if (sameDayInSantiago(startTime, endTime)) {
     return `${dateFormatter.format(startTime)}, ${timeFormatter.format(startTime)} – ${timeFormatter.format(endTime)}`
   }
   return `${dateFormatter.format(startTime)} ${timeFormatter.format(startTime)} → ${dateFormatter.format(endTime)} ${timeFormatter.format(endTime)}`
 }
 
-const shortDateFormatter = new Intl.DateTimeFormat('es-CL', { day: 'numeric', month: 'short' })
+const shortDateFormatter = new Intl.DateTimeFormat('es-CL', { day: 'numeric', month: 'short', timeZone: SANTIAGO_TZ })
 
 export function formatWindowShort(startTime: Date, endTime: Date) {
-  const sameDay = startTime.toDateString() === endTime.toDateString()
-  if (sameDay) {
+  if (sameDayInSantiago(startTime, endTime)) {
     return `${shortDateFormatter.format(startTime)} ${timeFormatter.format(startTime)}–${timeFormatter.format(endTime)}`
   }
   return `${shortDateFormatter.format(startTime)} ${timeFormatter.format(startTime)} → ${shortDateFormatter.format(endTime)} ${timeFormatter.format(endTime)}`
