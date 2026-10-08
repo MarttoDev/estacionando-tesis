@@ -6,14 +6,15 @@ import { realtimeClient } from '@/lib/realtime/client'
 import type { ChangeTopic } from '@/lib/realtime/notify'
 
 /**
- * Refreshes the current Server Components tree whenever another client (anyone, in any tab)
- * triggers a change in one of `topics`. Never reads real data over Realtime — it only reacts
- * to a lightweight "something changed" ping and re-fetches through the normal server path.
+ * Runs `onChange` (debounced 300ms) whenever another client (anyone, in any tab) triggers a
+ * change in one of `topics`. Never reads real data over Realtime — the payload only carries
+ * the topic label; `onChange` is expected to re-fetch through the normal authenticated path.
  */
-export function useRealtimeRefresh(topics: ChangeTopic[]) {
-  const router = useRouter()
+export function useRealtimeEvent(topics: ChangeTopic[], onChange: () => void) {
   const topicsKey = topics.join(',')
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const onChangeRef = useRef(onChange)
+  onChangeRef.current = onChange
 
   useEffect(() => {
     const client = realtimeClient
@@ -22,7 +23,7 @@ export function useRealtimeRefresh(topics: ChangeTopic[]) {
     const watchedTopics = topicsKey.split(',') as ChangeTopic[]
 
     const channel = client
-      .channel('change-events')
+      .channel(`change-events-${topicsKey}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'change_events' },
@@ -31,7 +32,7 @@ export function useRealtimeRefresh(topics: ChangeTopic[]) {
           if (!topic || !watchedTopics.includes(topic as ChangeTopic)) return
 
           if (timeoutRef.current) clearTimeout(timeoutRef.current)
-          timeoutRef.current = setTimeout(() => router.refresh(), 300)
+          timeoutRef.current = setTimeout(() => onChangeRef.current(), 300)
         },
       )
       .subscribe()
@@ -41,5 +42,12 @@ export function useRealtimeRefresh(topics: ChangeTopic[]) {
       client.removeChannel(channel)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [topicsKey, router])
+  }, [topicsKey])
+}
+
+/** Refreshes the current Server Components tree — the common case, used by every view that
+ *  doesn't manage its own client-side data (see MessagesView for the one that does). */
+export function useRealtimeRefresh(topics: ChangeTopic[]) {
+  const router = useRouter()
+  useRealtimeEvent(topics, () => router.refresh())
 }

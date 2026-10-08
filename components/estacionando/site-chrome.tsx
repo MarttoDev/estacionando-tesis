@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useMemo, useState, type FormEvent } from 'react'
 import dynamic from 'next/dynamic'
-import { Bell, CalendarDays, Clock3, LockKeyhole, Menu, Plus, Search, Shield, ShieldCheck, UserRound, X } from 'lucide-react'
+import { Bell, CalendarDays, Clock3, LockKeyhole, Menu, MessageCircle, Plus, Search, Shield, ShieldCheck, UserRound, X } from 'lucide-react'
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { BrandMark } from './brand-mark'
@@ -14,16 +14,31 @@ import { AvailabilityPicker, type AvailabilityValue } from './availability-picke
 
 const SpotMap = dynamic(() => import('./spot-map').then((mod) => mod.SpotMap), { ssr: false })
 import { createReservationAction } from '@/lib/reservations/actions'
+import type { StartConversationState } from '@/lib/messages/actions'
 import { computeAvailabilityRange, formatWindowShort, toDateIso } from '@/lib/estacionando/format'
 import { useLockBodyScroll } from '@/hooks/use-lock-body-scroll'
 import type { AvailabilityWindow, Spot, View } from '@/lib/estacionando/types'
 import type { SessionUser } from '@/lib/auth/types'
 import type { NotificationItem } from '@/lib/notifications/queries'
+import type { ConversationPreview } from '@/lib/messages/queries'
 
-type SiteChromeProps = { view: View; nav: (view: View) => void; selected: Spot | null; closeSpot: () => void; onReserved: () => void; user: SessionUser | null; notifications: NotificationItem[]; children: ReactNode }
+type SiteChromeProps = {
+  view: View
+  nav: (view: View) => void
+  selected: Spot | null
+  closeSpot: () => void
+  onReserved: () => void
+  user: SessionUser | null
+  notifications: NotificationItem[]
+  conversations: ConversationPreview[]
+  startConversation: (spotId: string) => Promise<StartConversationState>
+  openMessages: () => void
+  children: ReactNode
+}
 
-export function SiteChrome({ view, nav, selected, closeSpot, onReserved, user, notifications, children }: SiteChromeProps) {
+export function SiteChrome({ view, nav, selected, closeSpot, onReserved, user, notifications, conversations, startConversation, openMessages, children }: SiteChromeProps) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const unreadMessages = conversations.reduce((sum, c) => sum + c.unreadCount, 0)
 
   function navAndClose(next: View) {
     nav(next)
@@ -31,7 +46,7 @@ export function SiteChrome({ view, nav, selected, closeSpot, onReserved, user, n
   }
 
   return <>
-    <header className="sticky top-0 z-20 border-b border-border/70 bg-background/90 backdrop-blur-xl"><div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between px-5 lg:px-10"><button onClick={() => nav('explore')} className="flex items-center gap-3"><BrandMark /><span className="text-lg font-semibold tracking-[-0.04em]">estacionando<span className="text-accent">.</span></span></button><nav className="hidden items-center gap-1 text-sm md:flex">{([['explore', 'Explorar'], ['bookings', 'Mis reservas'], ['publish', 'Publicar espacio'], ['profile', 'Perfil']] as const).map(([key, label]) => <button key={key} onClick={() => nav(key)} className={`rounded-full px-4 py-2 transition ${view === key ? 'bg-muted font-medium text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>{label}</button>)}</nav><div className="flex items-center gap-2"><div className="hidden items-center gap-2 md:flex"><ThemeToggle />{user && <NotificationBell notifications={notifications} onViewAll={() => nav('notifications')} />}{user?.isAdmin &&<Link href="/admin" className="flex items-center gap-2 rounded-full border border-border px-3 py-2 text-sm font-medium hover:bg-muted"><Shield className="size-4" /><span className="hidden sm:inline">Panel admin</span></Link>}{user ? <button onClick={() => nav('profile')} className="flex items-center gap-2 rounded-full border border-border px-3 py-2 text-sm font-medium hover:bg-muted">{user.avatarUrl ? <img src={user.avatarUrl} alt={user.name} className="size-4 rounded-full object-cover" /> : <UserRound className="size-4" />}<span className="hidden sm:inline">{user.name.split(' ')[0]}</span></button> : <Link href="/login" className="flex items-center gap-2 rounded-full border border-border px-3 py-2 text-sm font-medium hover:bg-muted"><UserRound className="size-4" /><span className="hidden sm:inline">Iniciar sesión</span></Link>}</div>{user && <span className="md:hidden"><NotificationBell notifications={notifications} onViewAll={() => nav('notifications')} /></span>}<button aria-label="Abrir menú" onClick={() => setMenuOpen(true)} className="rounded-full border border-border p-2.5 md:hidden"><Menu className="size-4" /></button></div></div></header>
+    <header className="sticky top-0 z-20 border-b border-border/70 bg-background/90 backdrop-blur-xl"><div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between px-5 lg:px-10"><button onClick={() => nav('explore')} className="flex items-center gap-3"><BrandMark /><span className="text-lg font-semibold tracking-[-0.04em]">estacionando<span className="text-accent">.</span></span></button><nav className="hidden items-center gap-1 text-sm md:flex">{([['explore', 'Explorar'], ['bookings', 'Mis reservas'], ['publish', 'Publicar espacio'], ['profile', 'Perfil']] as const).map(([key, label]) => <button key={key} onClick={() => nav(key)} className={`rounded-full px-4 py-2 transition ${view === key ? 'bg-muted font-medium text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>{label}</button>)}{user && <button onClick={openMessages} className={`relative rounded-full px-4 py-2 transition ${view === 'messages' ? 'bg-muted font-medium text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>Mensajes{unreadMessages > 0 && <span className="absolute right-1 top-1 flex size-4 items-center justify-center rounded-full bg-destructive text-[9px] font-semibold text-destructive-foreground">{unreadMessages > 9 ? '9+' : unreadMessages}</span>}</button>}</nav><div className="flex items-center gap-2"><div className="hidden items-center gap-2 md:flex"><ThemeToggle />{user && <NotificationBell notifications={notifications} onViewAll={() => nav('notifications')} />}{user?.isAdmin &&<Link href="/admin" className="flex items-center gap-2 rounded-full border border-border px-3 py-2 text-sm font-medium hover:bg-muted"><Shield className="size-4" /><span className="hidden sm:inline">Panel admin</span></Link>}{user ? <button onClick={() => nav('profile')} className="flex items-center gap-2 rounded-full border border-border px-3 py-2 text-sm font-medium hover:bg-muted">{user.avatarUrl ? <img src={user.avatarUrl} alt={user.name} className="size-4 rounded-full object-cover" /> : <UserRound className="size-4" />}<span className="hidden sm:inline">{user.name.split(' ')[0]}</span></button> : <Link href="/login" className="flex items-center gap-2 rounded-full border border-border px-3 py-2 text-sm font-medium hover:bg-muted"><UserRound className="size-4" /><span className="hidden sm:inline">Iniciar sesión</span></Link>}</div>{user && <span className="md:hidden"><NotificationBell notifications={notifications} onViewAll={() => nav('notifications')} /></span>}<button aria-label="Abrir menú" onClick={() => setMenuOpen(true)} className="rounded-full border border-border p-2.5 md:hidden"><Menu className="size-4" /></button></div></div></header>
     <MobileMenu open={menuOpen} onClose={() => setMenuOpen(false)}>
       <div className="flex items-center justify-between rounded-xl border border-border px-3 py-3">
         <span className="text-sm font-medium text-muted-foreground">Tema</span>
@@ -41,6 +56,12 @@ export function SiteChrome({ view, nav, selected, closeSpot, onReserved, user, n
         <Link href="/admin" onClick={() => setMenuOpen(false)} className="mt-2 flex items-center gap-2 rounded-xl px-3 py-3 text-sm font-medium text-foreground hover:bg-muted">
           <Shield className="size-4" /> Panel admin
         </Link>
+      )}
+      {user && (
+        <button onClick={() => { openMessages(); setMenuOpen(false) }} className="mt-2 flex items-center justify-between gap-2 rounded-xl px-3 py-3 text-left text-sm font-medium text-foreground hover:bg-muted">
+          <span className="flex items-center gap-2"><MessageCircle className="size-4" /> Mensajes</span>
+          {unreadMessages > 0 && <span className="flex size-5 items-center justify-center rounded-full bg-destructive text-[10px] font-semibold text-destructive-foreground">{unreadMessages > 9 ? '9+' : unreadMessages}</span>}
+        </button>
       )}
       {user ? (
         <button onClick={() => navAndClose('profile')} className="mt-2 flex items-center gap-2 rounded-xl px-3 py-3 text-left text-sm font-medium text-foreground hover:bg-muted">
@@ -55,7 +76,7 @@ export function SiteChrome({ view, nav, selected, closeSpot, onReserved, user, n
     </MobileMenu>
     {children}
     <MobileNav view={view} nav={nav} user={user} notifications={notifications} />
-    {selected && <SpotDialog spot={selected} close={closeSpot} onReserved={onReserved} />}
+    {selected && <SpotDialog spot={selected} close={closeSpot} onReserved={onReserved} user={user} startConversation={startConversation} />}
     <SiteFooter />
   </>
 }
@@ -97,13 +118,23 @@ function segmentToRange(segment: AvailabilityWindow | undefined): AvailabilityVa
   }
 }
 
-function SpotDialog({ spot, close, onReserved }: { spot: Spot; close: () => void; onReserved: () => void }) {
+function SpotDialog({ spot, close, onReserved, user, startConversation }: { spot: Spot; close: () => void; onReserved: () => void; user: SessionUser | null; startConversation: (spotId: string) => Promise<StartConversationState> }) {
   const [state, formAction, pending] = useActionState(createReservationAction, undefined)
   const [segmentIndex, setSegmentIndex] = useState(0)
   const segment = spot.availableWindows[segmentIndex]
   const [range, setRange] = useState<AvailabilityValue>(() => segmentToRange(segment))
   const [clientError, setClientError] = useState<string | null>(null)
+  const [contactPending, setContactPending] = useState(false)
+  const [contactError, setContactError] = useState<string | null>(null)
   const pins = useMemo(() => (spot.latitude !== null && spot.longitude !== null ? [{ id: spot.id, latitude: spot.latitude, longitude: spot.longitude }] : []), [spot])
+
+  async function handleContact() {
+    setContactPending(true)
+    setContactError(null)
+    const result = await startConversation(spot.id)
+    setContactPending(false)
+    if (result && 'error' in result) setContactError(result.error)
+  }
 
   useLockBodyScroll(true)
 
@@ -142,6 +173,14 @@ function SpotDialog({ spot, close, onReserved }: { spot: Spot; close: () => void
   }
 
   return <div className="fixed inset-0 z-30 flex items-end justify-center bg-primary/30 p-4 backdrop-blur-sm sm:items-center" onClick={close}><div role="dialog" aria-modal="true" className="flex max-h-[calc(100dvh-2rem)] w-full max-w-lg flex-col overflow-hidden rounded-3xl bg-background shadow-2xl" onClick={(event) => event.stopPropagation()}><div className="relative h-36 shrink-0 sm:h-52"><img src={spot.image} alt={spot.title} className="size-full object-cover" /><button aria-label="Cerrar" onClick={close} className="absolute right-4 top-4 rounded-full bg-background/90 p-2"><X className="size-4" /></button></div><div className="flex-1 overflow-y-auto overflow-x-hidden p-5 sm:p-6"><div><h2 className="text-xl font-semibold tracking-[-0.05em] sm:text-2xl">{spot.title}</h2><p className="mt-1 text-sm text-muted-foreground">{spot.area}</p></div>{pins.length > 0 && <SpotMap pins={pins} className="mt-4 h-40 w-full min-w-0" zoom={15} />}<div className="my-4 grid grid-cols-3 border-y border-border py-2.5 text-center text-xs sm:my-5 sm:py-4"><span><ShieldCheck className="mx-auto mb-1 size-4 text-accent" />Verificado</span><span><Clock3 className="mx-auto mb-1 size-4 text-accent" />24/7</span><span><LockKeyhole className="mx-auto mb-1 size-4 text-accent" />Privado</span></div>
+    {user && (
+      <div className="mb-4">
+        <button type="button" onClick={handleContact} disabled={contactPending} className="flex w-full items-center justify-center gap-2 rounded-full border border-border px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-50 sm:w-auto">
+          <MessageCircle className="size-4" /> {contactPending ? 'Abriendo chat…' : 'Contactar anfitrión'}
+        </button>
+        {contactError && <p className="mt-2 text-sm text-destructive">{contactError}</p>}
+      </div>
+    )}
     {spot.availableWindows.length > 1 && (
       <div className="mb-4">
         <p className="mb-2 text-sm font-medium">Rangos disponibles</p>

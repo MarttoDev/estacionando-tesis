@@ -27,6 +27,9 @@ model User {
   identityVerification IdentityVerification?
   assignedTasks        Task[]
   passwordResetTokens  PasswordResetToken[]
+  conversationsAsHost   Conversation[] @relation("ConversationsAsHost")
+  conversationsAsRenter Conversation[] @relation("ConversationsAsRenter")
+  messagesSent          Message[]
 
   @@map("users")
 }
@@ -52,6 +55,42 @@ model PasswordResetToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("password_reset_tokens")
+}
+
+/// One thread per (spot, renter) pair — not per reservation, so the same two people stay in
+/// one conversation across an inquiry and any bookings that follow from it; not fully open
+/// DMs either, since a thread only exists in the context of a specific spot. The host is
+/// derived from the spot's owner at creation time, not stored redundantly on every message.
+model Conversation {
+  id        String   @id @default(uuid())
+  spotId    String   @map("spot_id")
+  hostId    String   @map("host_id")
+  renterId  String   @map("renter_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  spot     ParkingSpot @relation(fields: [spotId], references: [id], onDelete: Cascade)
+  host     User        @relation("ConversationsAsHost", fields: [hostId], references: [id], onDelete: Cascade)
+  renter   User        @relation("ConversationsAsRenter", fields: [renterId], references: [id], onDelete: Cascade)
+  messages Message[]
+
+  @@unique([spotId, renterId])
+  @@map("conversations")
+}
+
+model Message {
+  id             String    @id @default(uuid())
+  conversationId String    @map("conversation_id")
+  senderId       String    @map("sender_id")
+  body           String
+  readAt         DateTime? @map("read_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@map("messages")
 }
 
 /// No sensitive data on purpose: this is the only table exposed to Supabase Realtime,
@@ -93,6 +132,7 @@ model ParkingSpot {
   parkingType   ParkingType    @relation(fields: [parkingTypeId], references: [id])
   availabilities Availability[]
   reservations  Reservation[]
+  conversations Conversation[]
 
   @@map("parking_spots")
 }

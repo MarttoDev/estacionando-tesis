@@ -3,6 +3,7 @@ import type { ReservationStatus } from '@prisma/client'
 
 export type ReservationView = {
   id: string
+  spotId: string
   spotTitle: string
   spotArea: string
   spotLatitude: number | null
@@ -23,6 +24,7 @@ export async function getUserReservations(userId: string): Promise<ReservationVi
 
   return reservations.map((reservation) => ({
     id: reservation.id,
+    spotId: reservation.spotId,
     spotTitle: reservation.spot.title,
     spotArea: reservation.spot.area,
     spotLatitude: reservation.spot.latitude,

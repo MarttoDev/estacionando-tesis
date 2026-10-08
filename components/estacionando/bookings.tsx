@@ -2,21 +2,39 @@
 
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Ban, CalendarDays, Check, Navigation, ShieldCheck, UserRound } from 'lucide-react'
+import { Ban, CalendarDays, Check, MessageCircle, Navigation, ShieldCheck, UserRound } from 'lucide-react'
 import { PageShell } from './page-shell'
 import { RouteToSpotModal } from './route-to-spot-modal'
 import { CancelReservationModal } from './cancel-reservation-modal'
 import { formatReservationRange } from '@/lib/estacionando/format'
 import type { SessionUser } from '@/lib/auth/types'
 import type { ReservationView } from '@/lib/reservations/queries'
+import type { StartConversationState } from '@/lib/messages/actions'
 
 type Tab = 'active' | 'completed'
 
-export function Bookings({ user, reservations, onExplore }: { user: SessionUser | null; reservations: ReservationView[]; onExplore: () => void }) {
+export function Bookings({
+  user,
+  reservations,
+  onExplore,
+  onMessageHost,
+}: {
+  user: SessionUser | null
+  reservations: ReservationView[]
+  onExplore: () => void
+  onMessageHost: (spotId: string) => Promise<StartConversationState>
+}) {
   const [tab, setTab] = useState<Tab>('active')
   const [routeSpot, setRouteSpot] = useState<{ title: string; latitude: number; longitude: number } | null>(null)
   const [cancelling, setCancelling] = useState<{ id: string; spotTitle: string; totalPrice: number } | null>(null)
+  const [messagingId, setMessagingId] = useState<string | null>(null)
   const now = useMemo(() => new Date(), [])
+
+  async function handleMessageHost(reservationId: string, spotId: string) {
+    setMessagingId(reservationId)
+    await onMessageHost(spotId)
+    setMessagingId(null)
+  }
 
   const active = useMemo(() => reservations.filter((reservation) => reservation.endTime > now && reservation.status !== 'CANCELLED'), [reservations, now])
   const completed = useMemo(() => reservations.filter((reservation) => reservation.endTime <= now || reservation.status === 'CANCELLED'), [reservations, now])
@@ -85,6 +103,13 @@ export function Bookings({ user, reservations, onExplore }: { user: SessionUser 
                         <Navigation className="size-4" /> Ir al lugar
                       </button>
                     )}
+                    <button
+                      onClick={() => handleMessageHost(reservation.id, reservation.spotId)}
+                      disabled={messagingId === reservation.id}
+                      className="flex flex-1 items-center justify-center gap-2 rounded-full border border-border px-4 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted disabled:opacity-50"
+                    >
+                      <MessageCircle className="size-4" /> {messagingId === reservation.id ? 'Abriendo chat…' : 'Mensaje al anfitrión'}
+                    </button>
                     <button
                       onClick={() => setCancelling({ id: reservation.id, spotTitle: reservation.spotTitle, totalPrice: reservation.totalPrice })}
                       className="flex flex-1 items-center justify-center gap-2 rounded-full border border-border px-4 py-2.5 text-sm font-medium text-muted-foreground hover:border-destructive hover:text-destructive"
