@@ -1,4 +1,4 @@
-export type View = 'explore' | 'bookings' | 'publish' | 'profile'
+export type View = 'explore' | 'bookings' | 'publish' | 'notifications' | 'profile'
 
 export type AvailabilityWindow = { id: string; availabilityId: string; startTime: Date; endTime: Date }
 

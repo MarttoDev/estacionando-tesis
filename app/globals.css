@@ -150,3 +150,24 @@ p {
     font-size: 16px;
   }
 }
+
+/* Periodic bell ring: wiggles briefly, then holds still for the rest of each cycle — a quiet
+   "something's waiting" cue on the floating nav's notification icon, not a constant animation. */
+@keyframes bell-ring {
+  0%, 100% { transform: rotate(0deg); }
+  2% { transform: rotate(14deg); }
+  4% { transform: rotate(-12deg); }
+  6% { transform: rotate(10deg); }
+  8% { transform: rotate(-8deg); }
+  10% { transform: rotate(4deg); }
+  12% { transform: rotate(0deg); }
+}
+.animate-bell-ring {
+  transform-origin: 50% 0%;
+  animation: bell-ring 5s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-bell-ring {
+    animation: none;
+  }
+}

@@ -17,15 +17,9 @@ function formatRelative(date: Date) {
   return relativeTimeFormatter.format(Math.round(diffHours / 24), 'day')
 }
 
-export function NotificationBell({
-  notifications,
-  placement = 'bottom',
-  variant = 'default',
-}: {
-  notifications: NotificationItem[]
-  placement?: 'bottom' | 'top'
-  variant?: 'default' | 'plain'
-}) {
+/** Header-only notification dropdown. The bottom floating menu has its own plain bell button
+ *  that navigates to a full /notifications-style view instead — see MobileNav in site-chrome.tsx. */
+export function NotificationBell({ notifications, onViewAll }: { notifications: NotificationItem[]; onViewAll: () => void }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [, startTransition] = useTransition()
@@ -63,11 +57,7 @@ export function NotificationBell({
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-label={unreadCount > 0 ? `Notificaciones, ${unreadCount} sin leer` : 'Notificaciones'}
-        className={
-          variant === 'plain'
-            ? 'relative flex items-center justify-center rounded-full p-3 text-muted-foreground'
-            : 'relative flex items-center justify-center rounded-full border border-border p-2.5 text-muted-foreground hover:bg-muted hover:text-foreground'
-        }
+        className="relative flex items-center justify-center rounded-full border border-border p-2.5 text-muted-foreground hover:bg-muted hover:text-foreground"
       >
         <Bell className="size-4" />
         {unreadCount > 0 && (
@@ -78,16 +68,7 @@ export function NotificationBell({
       </button>
 
       {open && (
-        <div
-          className={
-            placement === 'top'
-              // Anchored to the viewport, not to the bell: the bell sits inside a narrow,
-              // horizontally-centered pill near the screen edge, so a panel anchored to the
-              // button itself (right-0 / w-80) can run off the opposite side of the screen.
-              ? 'fixed inset-x-4 bottom-24 z-30 overflow-hidden rounded-2xl border border-border bg-card shadow-xl'
-              : 'absolute right-0 top-full z-30 mt-2 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-border bg-card shadow-xl'
-          }
-        >
+        <div className="absolute right-0 top-full z-30 mt-2 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
             <p className="text-sm font-semibold">Notificaciones</p>
             {unreadCount > 0 && (
@@ -96,11 +77,11 @@ export function NotificationBell({
               </button>
             )}
           </div>
-          <div className="max-h-96 overflow-y-auto">
+          <div className="max-h-80 overflow-y-auto">
             {notifications.length === 0 ? (
               <p className="px-4 py-8 text-center text-sm text-muted-foreground">No tienes notificaciones todavía.</p>
             ) : (
-              notifications.map((notification) => (
+              notifications.slice(0, 6).map((notification) => (
                 <button
                   key={notification.id}
                   type="button"
@@ -117,6 +98,13 @@ export function NotificationBell({
               ))
             )}
           </div>
+          <button
+            type="button"
+            onClick={() => { setOpen(false); onViewAll() }}
+            className="block w-full border-t border-border px-4 py-3 text-center text-sm font-medium text-accent hover:bg-muted"
+          >
+            Ver todas las notificaciones
+          </button>
         </div>
       )}
     </div>

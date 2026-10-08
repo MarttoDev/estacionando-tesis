@@ -3,12 +3,12 @@
 import { startTransition, useActionState, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Ban, Building2, CalendarClock, ChevronDown, ChevronLeft, ChevronRight, GripVertical, ListChecks, LogOut, ShieldCheck, Trash2, UserPlus, Users } from 'lucide-react'
+import { Ban, Building2, CalendarClock, ChevronDown, ChevronLeft, ChevronRight, GripVertical, ListChecks, LogOut, Plus, ShieldCheck, Trash2, UserPlus, Users } from 'lucide-react'
 import { BrandMark } from './brand-mark'
 import { ThemeToggle } from './theme-toggle'
 import { AdminConfirmModal } from './admin-confirm-modal'
 import { logoutAction } from '@/lib/auth/actions'
-import { promoteAdminAction, demoteAdminAction, deleteSpotAdminAction, deleteUserAdminAction, cancelReservationAdminAction, moveTaskAction, assignTaskAction } from '@/lib/admin/actions'
+import { promoteAdminAction, demoteAdminAction, deleteSpotAdminAction, deleteUserAdminAction, cancelReservationAdminAction, createTaskAction, moveTaskAction, assignTaskAction } from '@/lib/admin/actions'
 import { useRealtimeRefresh } from '@/hooks/use-realtime-refresh'
 import type { AdminDashboardData } from '@/lib/admin/queries'
 import type { SessionUser } from '@/lib/auth/types'
@@ -506,9 +506,19 @@ function TareasTab({ tasks, users }: { tasks: AdminDashboardData['tasks']; users
   const router = useRouter()
   const admins = users.filter((u) => u.isAdmin).map((u) => ({ id: u.id, name: u.name }))
   const doneCount = tasks.filter((t) => t.status === 'DONE').length
+  const epics = Array.from(new Set(tasks.map((t) => t.epic))).sort((a, b) => a.localeCompare(b, 'es'))
   const [draggedId, setDraggedId] = useState<string | null>(null)
   const [dragOverStatus, setDragOverStatus] = useState<TaskStatus | null>(null)
   const [boardError, setBoardError] = useState<string | null>(null)
+  const [addingToStatus, setAddingToStatus] = useState<TaskStatus | null>(null)
+  const [createState, createFormAction, createPending] = useActionState(createTaskAction, undefined)
+
+  useEffect(() => {
+    if (createState && 'success' in createState) {
+      setAddingToStatus(null)
+      router.refresh()
+    }
+  }, [createState, router])
 
   async function moveTo(taskId: string, status: TaskStatus) {
     const formData = new FormData()
@@ -545,41 +555,60 @@ function TareasTab({ tasks, users }: { tasks: AdminDashboardData['tasks']; users
 
       {tasks.length === 0 && <p className="rounded-3xl border border-border bg-card p-6 text-sm text-muted-foreground">No hay tareas cargadas todavía.</p>}
 
-      {tasks.length > 0 && (
-        <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-3">
-          {TASK_COLUMNS.map((column, columnIndex) => {
-            const columnTasks = tasks.filter((t) => t.status === column.status)
-            return (
-              <div
-                key={column.status}
-                onDragOver={(e) => { e.preventDefault(); setDragOverStatus(column.status) }}
-                onDragLeave={() => setDragOverStatus((s) => (s === column.status ? null : s))}
-                onDrop={(e) => { e.preventDefault(); handleDrop(column.status) }}
-                className={`min-w-0 rounded-3xl border bg-card p-4 transition-colors ${dragOverStatus === column.status ? 'border-accent bg-accent/5' : 'border-border'}`}
-              >
-                <div className="flex items-center justify-between gap-2 px-1 pb-3">
-                  <h3 className="text-sm font-semibold">{column.label}</h3>
-                  <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs tabular-nums text-muted-foreground">{columnTasks.length}</span>
-                </div>
-                <div className="flex min-h-[60px] flex-col gap-2">
-                  {columnTasks.length === 0 && <p className="rounded-xl border border-dashed border-border px-3 py-6 text-center text-xs text-muted-foreground">Sin tareas acá</p>}
-                  {columnTasks.map((task) => (
-                    <TaskCard
-                      key={task.id}
-                      task={task}
-                      admins={admins}
-                      columnIndex={columnIndex}
-                      onDragStart={() => setDraggedId(task.id)}
-                      onDragEnd={() => setDraggedId(null)}
-                      onMove={(status) => moveTo(task.id, status)}
-                    />
-                  ))}
-                </div>
+      <datalist id="task-epics">
+        {epics.map((epic) => <option key={epic} value={epic} />)}
+      </datalist>
+
+      <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-3">
+        {TASK_COLUMNS.map((column, columnIndex) => {
+          const columnTasks = tasks.filter((t) => t.status === column.status)
+          return (
+            <div
+              key={column.status}
+              onDragOver={(e) => { e.preventDefault(); setDragOverStatus(column.status) }}
+              onDragLeave={() => setDragOverStatus((s) => (s === column.status ? null : s))}
+              onDrop={(e) => { e.preventDefault(); handleDrop(column.status) }}
+              className={`min-w-0 rounded-3xl border bg-card p-4 transition-colors ${dragOverStatus === column.status ? 'border-accent bg-accent/5' : 'border-border'}`}
+            >
+              <div className="flex items-center justify-between gap-2 px-1 pb-3">
+                <h3 className="text-sm font-semibold">{column.label}</h3>
+                <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs tabular-nums text-muted-foreground">{columnTasks.length}</span>
               </div>
-            )
-          })}
-        </div>
-      )}
+              <div className="flex min-h-[60px] flex-col gap-2">
+                {columnTasks.length === 0 && addingToStatus !== column.status && <p className="rounded-xl border border-dashed border-border px-3 py-6 text-center text-xs text-muted-foreground">Sin tareas acá</p>}
+                {columnTasks.map((task) => (
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    admins={admins}
+                    columnIndex={columnIndex}
+                    onDragStart={() => setDraggedId(task.id)}
+                    onDragEnd={() => setDraggedId(null)}
+                    onMove={(status) => moveTo(task.id, status)}
+                  />
+                ))}
+
+                {addingToStatus === column.status ? (
+                  <form action={createFormAction} className="flex flex-col gap-2 rounded-xl border border-dashed border-accent/50 bg-accent/5 p-3">
+                    <input type="hidden" name="status" value={column.status} />
+                    <input name="title" required autoFocus placeholder="Título de la tarea" className="w-full rounded-lg border border-input bg-background px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-accent/30" />
+                    <input name="epic" list="task-epics" placeholder="Épica (opcional)" className="w-full rounded-lg border border-input bg-background px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-accent/30" />
+                    {createState && 'error' in createState && <p className="text-xs text-destructive">{createState.error}</p>}
+                    <div className="flex gap-2">
+                      <button type="submit" disabled={createPending} className="flex-1 rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50">{createPending ? 'Guardando…' : 'Guardar'}</button>
+                      <button type="button" onClick={() => setAddingToStatus(null)} className="rounded-full border border-border px-3 py-1.5 text-xs font-medium">Cancelar</button>
+                    </div>
+                  </form>
+                ) : (
+                  <button type="button" onClick={() => setAddingToStatus(column.status)} className="flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-border px-3 py-2.5 text-xs font-medium text-muted-foreground hover:border-accent hover:text-accent">
+                    <Plus className="size-3.5" /> Agregar tarea
+                  </button>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }

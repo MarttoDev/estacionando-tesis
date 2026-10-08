@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Bookings } from './bookings'
 import { Explore } from './explore'
+import { NotificationsView } from './notifications-view'
 import { Profile } from './profile'
 import { Publish } from './publish'
 import { SiteChrome } from './site-chrome'
@@ -48,5 +49,5 @@ export function AppShell({ user, spots, parkingTypes, reservations, ownerSpots, 
     router.refresh()
   }
 
-  return <main className="min-h-screen bg-background text-foreground"><SiteChrome view={view} nav={nav} selected={selected} closeSpot={() => setSelected(null)} onReserved={onReserved} user={user} notifications={notifications}><>{view === 'explore' && <Explore query={query} setQuery={setQuery} comuna={comuna} setComuna={setComuna} comunas={comunas} filtered={filtered} liked={liked} toggleLike={(id) => setLiked((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id])} onSelect={setSelected} nav={nav} />}{view === 'bookings' && <Bookings user={user} reservations={reservations} onExplore={() => nav('explore')} />}{view === 'publish' && <Publish user={user} parkingTypes={parkingTypes} ownerSpots={ownerSpots} />}{view === 'profile' && <Profile user={user} verified={verified} scanState={scanState} startScan={startScan} reservationsMadeCount={reservations.length} reservationsReceivedCount={ownerSpots.reduce((sum, spot) => sum + spot.totalReservationCount, 0)} spotsPublishedCount={ownerSpots.length} />}</></SiteChrome></main>
+  return <main className="min-h-screen bg-background text-foreground"><SiteChrome view={view} nav={nav} selected={selected} closeSpot={() => setSelected(null)} onReserved={onReserved} user={user} notifications={notifications}><>{view === 'explore' && <Explore query={query} setQuery={setQuery} comuna={comuna} setComuna={setComuna} comunas={comunas} filtered={filtered} liked={liked} toggleLike={(id) => setLiked((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id])} onSelect={setSelected} nav={nav} />}{view === 'bookings' && <Bookings user={user} reservations={reservations} onExplore={() => nav('explore')} />}{view === 'publish' && <Publish user={user} parkingTypes={parkingTypes} ownerSpots={ownerSpots} />}{view === 'notifications' && <NotificationsView user={user} notifications={notifications} />}{view === 'profile' && <Profile user={user} verified={verified} scanState={scanState} startScan={startScan} reservationsMadeCount={reservations.length} reservationsReceivedCount={ownerSpots.reduce((sum, spot) => sum + spot.totalReservationCount, 0)} spotsPublishedCount={ownerSpots.length} />}</></SiteChrome></main>
 }

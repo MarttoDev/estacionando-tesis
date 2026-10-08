@@ -180,6 +180,32 @@ export async function cancelReservationAdminAction(_prevState: AdminActionState,
 
 const TASK_STATUSES = ['TODO', 'IN_PROGRESS', 'DONE'] as const
 
+export async function createTaskAction(_prevState: AdminActionState, formData: FormData): Promise<AdminActionState> {
+  const caller = await getCurrentUser()
+  if (!caller || !caller.isAdmin) {
+    return { error: 'No tienes permisos de administrador' }
+  }
+
+  const title = formData.get('title')
+  if (typeof title !== 'string' || !title.trim()) {
+    return { error: 'Escribe un título para la tarea' }
+  }
+
+  const epicRaw = formData.get('epic')
+  const epic = typeof epicRaw === 'string' && epicRaw.trim() ? epicRaw.trim() : 'Sin épica'
+
+  const status = formData.get('status')
+  const validStatus = typeof status === 'string' && TASK_STATUSES.includes(status as (typeof TASK_STATUSES)[number]) ? (status as (typeof TASK_STATUSES)[number]) : 'TODO'
+
+  const last = await prisma.task.findFirst({ orderBy: { order: 'desc' }, select: { order: true } })
+
+  await prisma.task.create({
+    data: { title: title.trim(), epic, status: validStatus, order: (last?.order ?? 0) + 1 },
+  })
+  await notifyChange('tasks')
+  return { success: true }
+}
+
 export async function moveTaskAction(_prevState: AdminActionState, formData: FormData): Promise<AdminActionState> {
   const caller = await getCurrentUser()
   if (!caller || !caller.isAdmin) {
