@@ -5,8 +5,18 @@ import type { Spot } from '@/lib/estacionando/types'
 
 const PLACEHOLDER_IMAGE = '/placeholder.svg'
 
+/** The next full hour from `date` — e.g. 14:05 -> 15:00, 14:00 -> 15:00. Used so a window
+ *  that started in the past never offers "now" itself (already partly elapsed) as a start. */
+function nextFullHour(date: Date): Date {
+  const next = new Date(date)
+  next.setMinutes(0, 0, 0)
+  next.setHours(next.getHours() + 1)
+  return next
+}
+
 export async function getPublishedSpots(): Promise<Spot[]> {
   const now = new Date()
+  const earliestBookable = nextFullHour(now)
 
   const spots = await prisma.parkingSpot.findMany({
     where: {
@@ -27,7 +37,10 @@ export async function getPublishedSpots(): Promise<Spot[]> {
     .map((spot) => {
       const busy = busyRanges(spot)
       const availableWindows = spot.availabilities.flatMap((availability) =>
-        subtractBusyRanges({ start: availability.startTime, end: availability.endTime }, busy).map((segment, index) => ({
+        subtractBusyRanges(
+          { start: availability.startTime < earliestBookable ? earliestBookable : availability.startTime, end: availability.endTime },
+          busy,
+        ).map((segment, index) => ({
           id: `${availability.id}-${index}`,
           availabilityId: availability.id,
           startTime: segment.start,

@@ -17,7 +17,15 @@ function formatRelative(date: Date) {
   return relativeTimeFormatter.format(Math.round(diffHours / 24), 'day')
 }
 
-export function NotificationBell({ notifications }: { notifications: NotificationItem[] }) {
+export function NotificationBell({
+  notifications,
+  placement = 'bottom',
+  variant = 'default',
+}: {
+  notifications: NotificationItem[]
+  placement?: 'bottom' | 'top'
+  variant?: 'default' | 'plain'
+}) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [, startTransition] = useTransition()
@@ -55,7 +63,11 @@ export function NotificationBell({ notifications }: { notifications: Notificatio
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-label={unreadCount > 0 ? `Notificaciones, ${unreadCount} sin leer` : 'Notificaciones'}
-        className="relative flex items-center justify-center rounded-full border border-border p-2.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+        className={
+          variant === 'plain'
+            ? 'relative flex items-center justify-center rounded-full p-3 text-muted-foreground'
+            : 'relative flex items-center justify-center rounded-full border border-border p-2.5 text-muted-foreground hover:bg-muted hover:text-foreground'
+        }
       >
         <Bell className="size-4" />
         {unreadCount > 0 && (
@@ -66,7 +78,16 @@ export function NotificationBell({ notifications }: { notifications: Notificatio
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-30 mt-2 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
+        <div
+          className={
+            placement === 'top'
+              // Anchored to the viewport, not to the bell: the bell sits inside a narrow,
+              // horizontally-centered pill near the screen edge, so a panel anchored to the
+              // button itself (right-0 / w-80) can run off the opposite side of the screen.
+              ? 'fixed inset-x-4 bottom-24 z-30 overflow-hidden rounded-2xl border border-border bg-card shadow-xl'
+              : 'absolute right-0 top-full z-30 mt-2 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-border bg-card shadow-xl'
+          }
+        >
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
             <p className="text-sm font-semibold">Notificaciones</p>
             {unreadCount > 0 && (

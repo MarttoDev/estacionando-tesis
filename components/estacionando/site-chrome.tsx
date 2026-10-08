@@ -54,13 +54,22 @@ export function SiteChrome({ view, nav, selected, closeSpot, onReserved, user, n
       )}
     </MobileMenu>
     {children}
-    <MobileNav view={view} nav={nav} />
+    <MobileNav view={view} nav={nav} user={user} notifications={notifications} />
     {selected && <SpotDialog spot={selected} close={closeSpot} onReserved={onReserved} />}
     <SiteFooter />
   </>
 }
 
-function MobileNav({ view, nav }: Pick<SiteChromeProps, 'view' | 'nav'>) { return <div className="fixed bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1 rounded-full border border-border bg-card/95 p-1.5 shadow-xl backdrop-blur md:hidden">{([['explore', Search], ['bookings', CalendarDays], ['publish', Plus], ['profile', UserRound]] as const).map(([key, Icon]) => <button key={key} aria-label={key} onClick={() => nav(key)} className={`rounded-full p-3 ${view === key ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'}`}><Icon className="size-4" /></button>)}</div> }
+function MobileNav({ view, nav, user, notifications }: Pick<SiteChromeProps, 'view' | 'nav' | 'user' | 'notifications'>) {
+  return (
+    <div className="fixed bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1 rounded-full border border-border bg-card/95 p-1.5 shadow-xl backdrop-blur md:hidden">
+      {([['explore', Search], ['bookings', CalendarDays], ['publish', Plus], ['profile', UserRound]] as const).map(([key, Icon]) => (
+        <button key={key} aria-label={key} onClick={() => nav(key)} className={`rounded-full p-3 ${view === key ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'}`}><Icon className="size-4" /></button>
+      ))}
+      {user && <NotificationBell notifications={notifications} placement="top" variant="plain" />}
+    </div>
+  )
+}
 
 function segmentToRange(segment: AvailabilityWindow | undefined): AvailabilityValue {
   if (!segment) return { startDate: '', startHour: 0, endDate: '', endHour: 0 }

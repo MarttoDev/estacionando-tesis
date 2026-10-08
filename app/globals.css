@@ -138,3 +138,15 @@ button:not(:disabled):active {
 p {
   text-wrap: pretty;
 }
+
+/* iOS Safari auto-zooms the whole page when a focused input/select/textarea computes to
+   under 16px — most of this app's fields use text-sm (14px). Forcing 16px here (mobile only,
+   so desktop keeps its smaller type scale) stops the zoom without disabling pinch-zoom for
+   people who actually want it (unlike a user-scalable=no viewport, which breaks accessibility). */
+@media (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}

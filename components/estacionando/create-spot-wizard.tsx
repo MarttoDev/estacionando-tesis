@@ -1,6 +1,6 @@
 'use client'
 
-import { startTransition, useActionState, useEffect, useState, type FormEvent } from 'react'
+import { startTransition, useActionState, useEffect, useRef, useState, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Camera, Check, ChevronRight, FileCheck2, MapPin, Plus, Sparkles, ShieldCheck, Trash2 } from 'lucide-react'
 import { PageShell } from './page-shell'
@@ -27,9 +27,12 @@ export function CreateSpotWizard({ parkingTypes, onDone, onBack }: { parkingType
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [photoProcessing, setPhotoProcessing] = useState(false)
   const [clientError, setClientError] = useState<string | null>(null)
+  const [showConfirm, setShowConfirm] = useState(false)
   const [state, formAction, pending] = useActionState(createParkingSpotAction, undefined)
   const [suggestState, suggestFormAction, suggestPending] = useActionState(suggestPriceAction, undefined)
   const router = useRouter()
+  const formRef = useRef<HTMLFormElement>(null)
+  const confirmedRef = useRef(false)
 
   useEffect(() => {
     if (state && 'success' in state) router.refresh()
@@ -116,6 +119,20 @@ export function CreateSpotWizard({ parkingTypes, onDone, onBack }: { parkingType
     }
 
     setClientError(null)
+
+    // Todo pasó validación — en vez de publicar de inmediato, se muestra un último
+    // modal de confirmación. Solo cuando esa confirmación dispara requestSubmit() de
+    // nuevo (con confirmedRef ya en true) se deja pasar el submit real.
+    if (!confirmedRef.current) {
+      event.preventDefault()
+      setShowConfirm(true)
+    }
+  }
+
+  function handleConfirmPublish() {
+    confirmedRef.current = true
+    setShowConfirm(false)
+    formRef.current?.requestSubmit()
   }
 
   const displayError = clientError ?? (state && 'error' in state ? state.error : null)
@@ -134,6 +151,7 @@ export function CreateSpotWizard({ parkingTypes, onDone, onBack }: { parkingType
   }
 
   return (
+    <>
     <PageShell eyebrow="Comparte tu espacio" title="Publica tu estacionamiento" description="Convierte ese lugar libre en ingresos, con control total de tus horarios.">
       {onBack && <button type="button" onClick={onBack} className="mb-6 flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" /> Volver a mis espacios</button>}
       <div className="grid min-w-0 gap-5 lg:grid-cols-[.65fr_1.35fr]">
@@ -152,7 +170,7 @@ export function CreateSpotWizard({ parkingTypes, onDone, onBack }: { parkingType
           <div className="mt-16 border-t border-border pt-5 text-xs leading-5 text-muted-foreground">Puedes editar disponibilidad y precio cuando quieras.</div>
         </aside>
         <div className="min-w-0 rounded-3xl border border-border bg-card p-6 sm:p-8">
-          <form action={formAction} onSubmit={handleSubmit} noValidate>
+          <form ref={formRef} action={formAction} onSubmit={handleSubmit} noValidate>
             <div className={step === 1 ? '' : 'hidden'}>
               <h2 className="text-2xl font-semibold">Cuéntanos sobre el lugar</h2>
               <p className="mt-2 text-sm text-muted-foreground">Comienza con el nombre y la ubicación de tu estacionamiento.</p>
@@ -254,5 +272,27 @@ export function CreateSpotWizard({ parkingTypes, onDone, onBack }: { parkingType
         </div>
       </div>
     </PageShell>
+    {showConfirm && (
+      <div className="fixed inset-0 z-40 flex items-end justify-center bg-primary/30 p-4 backdrop-blur-sm sm:items-center" onClick={() => setShowConfirm(false)}>
+        <div role="dialog" aria-modal="true" className="w-full max-w-md rounded-3xl bg-background p-6 shadow-2xl" onClick={(event) => event.stopPropagation()}>
+          <h3 className="text-lg font-semibold">¿Publicar este espacio?</h3>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">Revisa que todo esté correcto — una vez publicado, las personas podrán encontrarlo y reservarlo.</p>
+          <div className="mt-4 flex items-center gap-3 rounded-2xl border border-border p-3">
+            <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-muted">
+              {photoPreview ? <img src={photoPreview} alt="" className="size-full object-cover" /> : <Camera className="size-5 text-muted-foreground" />}
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium">{preview.title || 'Sin título'}</p>
+              <p className="truncate text-xs text-muted-foreground">{address.text || 'Sin comuna'} · ${Number(preview.pricePerHour || 0).toLocaleString('es-CL')}/hora</p>
+            </div>
+          </div>
+          <div className="mt-5 flex justify-end gap-3">
+            <button type="button" onClick={() => setShowConfirm(false)} className="rounded-full border border-border px-5 py-3 text-sm font-medium">Revisar de nuevo</button>
+            <button type="button" onClick={handleConfirmPublish} disabled={pending} className="rounded-full bg-primary px-5 py-3 text-sm font-medium text-primary-foreground disabled:opacity-50">Sí, publicar</button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   )
 }
