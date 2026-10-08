@@ -26,6 +26,7 @@ model User {
   notifications        Notification[]
   identityVerification IdentityVerification?
   assignedTasks        Task[]
+  passwordResetTokens  PasswordResetToken[]
 
   @@map("users")
 }
@@ -38,6 +39,19 @@ model Session {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("sessions")
+}
+
+/// Same pattern as Session: id is the SHA-256 hash of the raw token, never the token
+/// itself — a leaked table never yields a usable reset link. One-hour expiry, single use.
+model PasswordResetToken {
+  id        String   @id
+  userId    String   @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("password_reset_tokens")
 }
 
 /// No sensitive data on purpose: this is the only table exposed to Supabase Realtime,

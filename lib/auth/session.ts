@@ -82,3 +82,9 @@ export async function invalidateCurrentSession() {
 
   store.delete(SESSION_COOKIE_NAME)
 }
+
+/** Invalidates every active session for a user — used after a password reset, so a
+ *  stolen-but-now-outdated session can't keep using the account the real owner just reset. */
+export async function invalidateAllUserSessions(userId: string) {
+  await prisma.session.deleteMany({ where: { userId } })
+}

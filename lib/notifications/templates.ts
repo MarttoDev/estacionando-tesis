@@ -74,6 +74,14 @@ export function reservationCancelledEmail(params: {
   return layout(body)
 }
 
+export function passwordResetEmail(params: { resetUrl: string }) {
+  const body = `
+    <p style="font-size:18px;font-weight:700;color:${INK};margin:0;">Restablece tu contraseña</p>
+    <p style="margin-top:8px;font-size:14px;color:${MUTED};line-height:1.6;">Recibimos una solicitud para restablecer tu contraseña. Si fuiste tú, usa el botón de abajo — el link expira en 1 hora.</p>
+    <p style="margin-top:12px;font-size:13px;color:${MUTED};">Si no fuiste tú, puedes ignorar este correo con tranquilidad: tu contraseña no cambia hasta que alguien use este link.</p>`
+  return layout(body, params.resetUrl, 'Restablecer contraseña')
+}
+
 export function reservationReminderEmail(params: { spotTitle: string; startTime: Date; endTime: Date; confirmationCode: string }) {
   const body = `
     <p style="font-size:18px;font-weight:700;color:${INK};margin:0;">Tu reserva es pronto</p>

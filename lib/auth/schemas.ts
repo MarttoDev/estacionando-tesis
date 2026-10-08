@@ -33,3 +33,18 @@ export const updatePasswordSchema = z
     message: 'Las contraseñas nuevas no coinciden',
     path: ['confirmPassword'],
   })
+
+export const requestPasswordResetSchema = z.object({
+  email: z.string().trim().toLowerCase().email('Ingresa un email válido'),
+})
+
+export const resetPasswordSchema = z
+  .object({
+    token: z.string().min(1, 'Link inválido'),
+    newPassword: z.string().min(8, 'La nueva contraseña debe tener al menos 8 caracteres'),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: 'Las contraseñas no coinciden',
+    path: ['confirmPassword'],
+  })
