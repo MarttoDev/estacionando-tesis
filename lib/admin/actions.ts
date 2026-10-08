@@ -5,6 +5,8 @@ import { getCurrentUser } from '@/lib/auth/dal'
 import { ADMIN_BOOTSTRAP_EMAIL } from '@/lib/auth/constants'
 import { deleteOrArchiveSpot } from '@/lib/parking-spots/delete-spot'
 import { notifyChange } from '@/lib/realtime/notify'
+import { notifyUser } from '@/lib/notifications/notify'
+import { reservationCancelledEmail } from '@/lib/notifications/templates'
 
 export type AdminActionState = { error: string } | { success: true } | undefined
 
@@ -132,7 +134,10 @@ export async function cancelReservationAdminAction(_prevState: AdminActionState,
     return { error: 'Reserva inválida' }
   }
 
-  const reservation = await prisma.reservation.findUnique({ where: { id: reservationId } })
+  const reservation = await prisma.reservation.findUnique({
+    where: { id: reservationId },
+    include: { spot: { include: { owner: true } }, user: true },
+  })
   if (!reservation) {
     return { error: 'Reserva no encontrada' }
   }
@@ -143,6 +148,33 @@ export async function cancelReservationAdminAction(_prevState: AdminActionState,
   await prisma.reservation.update({ where: { id: reservationId }, data: { status: 'CANCELLED' } })
   await notifyChange('reservations')
   await notifyChange('parking_spots')
+
+  const { spot, user: renter, startTime, endTime } = reservation
+  await notifyUser({
+    userId: renter.id,
+    reservationId,
+    type: 'RESERVATION_CANCELLED',
+    title: 'Tu reserva fue cancelada',
+    message: `Un administrador canceló tu reserva en ${spot.title}`,
+    email: {
+      to: renter.email,
+      subject: `Reserva cancelada en ${spot.title}`,
+      html: reservationCancelledEmail({ spotTitle: spot.title, startTime, endTime, audience: 'renter' }),
+    },
+  })
+  await notifyUser({
+    userId: spot.owner.id,
+    reservationId,
+    type: 'RESERVATION_CANCELLED',
+    title: 'Una reserva fue cancelada',
+    message: `Un administrador canceló una reserva en ${spot.title}`,
+    email: {
+      to: spot.owner.email,
+      subject: `Reserva cancelada en ${spot.title}`,
+      html: reservationCancelledEmail({ spotTitle: spot.title, startTime, endTime, audience: 'host' }),
+    },
+  })
+
   return { success: true }
 }
 

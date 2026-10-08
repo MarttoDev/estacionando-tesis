@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/db/prisma'
 
-export type ChangeTopic = 'parking_spots' | 'reservations' | 'users' | 'tasks'
+export type ChangeTopic = 'parking_spots' | 'reservations' | 'users' | 'tasks' | 'notifications'
 
 /**
  * Records that something changed in `topic`. The row itself carries no data beyond the

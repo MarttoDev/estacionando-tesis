@@ -115,11 +115,12 @@ model Reservation {
   confirmationCode String            @unique @map("confirmation_code")
   createdAt        DateTime          @default(now()) @map("created_at")
 
-  spot         ParkingSpot  @relation(fields: [spotId], references: [id], onDelete: Cascade)
-  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  availability Availability @relation(fields: [availabilityId], references: [id], onDelete: Cascade)
-  reviews      Review[]
-  payment      Payment?
+  spot          ParkingSpot    @relation(fields: [spotId], references: [id], onDelete: Cascade)
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  availability  Availability   @relation(fields: [availabilityId], references: [id], onDelete: Cascade)
+  reviews       Review[]
+  payment       Payment?
+  notifications Notification[]
 
   @@index([spotId, status])
   @@map("reservations")
@@ -182,18 +183,21 @@ enum NotificationType {
   ADMIN_ALERT
 }
 
-/// Not used by any feature yet — modeled ahead of time for the notifications phase (email and/or in-app).
+/// In-app notification, optionally backed by an email send (sentAt is null if the email
+/// failed or no provider is configured — the in-app row is still created either way).
 model Notification {
-  id        String           @id @default(uuid())
-  userId    String           @map("user_id")
-  type      NotificationType
-  title     String
-  message   String
-  readAt    DateTime?        @map("read_at")
-  sentAt    DateTime?        @map("sent_at")
-  createdAt DateTime         @default(now()) @map("created_at")
+  id            String           @id @default(uuid())
+  userId        String           @map("user_id")
+  reservationId String?          @map("reservation_id")
+  type          NotificationType
+  title         String
+  message       String
+  readAt        DateTime?        @map("read_at")
+  sentAt        DateTime?        @map("sent_at")
+  createdAt     DateTime         @default(now()) @map("created_at")
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reservation Reservation? @relation(fields: [reservationId], references: [id], onDelete: Cascade)
 
   @@map("notifications")
 }

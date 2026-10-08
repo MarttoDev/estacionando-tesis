@@ -5,6 +5,8 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db/prisma'
 import { getCurrentUser } from '@/lib/auth/dal'
 import { notifyChange } from '@/lib/realtime/notify'
+import { notifyUser } from '@/lib/notifications/notify'
+import { reservationCancelledEmail, reservationConfirmedHostEmail, reservationConfirmedRenterEmail } from '@/lib/notifications/templates'
 
 export type ReserveSpotState = { error: string } | { success: true } | undefined
 
@@ -39,7 +41,7 @@ export async function createReservationAction(_prevState: ReserveSpotState, form
 
   const availability = await prisma.availability.findUnique({
     where: { id: availabilityId },
-    include: { spot: true },
+    include: { spot: { include: { owner: true } } },
   })
 
   if (!availability) {
@@ -57,8 +59,11 @@ export async function createReservationAction(_prevState: ReserveSpotState, form
   const hours = (endTime.getTime() - startTime.getTime()) / 3_600_000
   const totalPrice = Math.round(hours * availability.spot.pricePerHour)
 
+  let reservationId: string
+  let confirmationCode: string
+
   try {
-    await prisma.$transaction(
+    const created = await prisma.$transaction(
       async (tx) => {
         const overlapping = await tx.reservation.findFirst({
           where: {
@@ -73,7 +78,7 @@ export async function createReservationAction(_prevState: ReserveSpotState, form
           throw new Error('SLOT_TAKEN')
         }
 
-        await tx.reservation.create({
+        return tx.reservation.create({
           data: {
             spotId: availability.spotId,
             userId: user.id,
@@ -88,6 +93,8 @@ export async function createReservationAction(_prevState: ReserveSpotState, form
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     )
+    reservationId = created.id
+    confirmationCode = created.confirmationCode
   } catch (error) {
     if (error instanceof Error && error.message === 'SLOT_TAKEN') {
       return { error: 'Ese horario ya no está disponible, elige otro' }
@@ -100,6 +107,32 @@ export async function createReservationAction(_prevState: ReserveSpotState, form
 
   await notifyChange('reservations')
   await notifyChange('parking_spots')
+
+  const spot = availability.spot
+  await notifyUser({
+    userId: user.id,
+    reservationId,
+    type: 'RESERVATION_CONFIRMED',
+    title: 'Tu reserva está confirmada',
+    message: `Reservaste ${spot.title} — código ${confirmationCode}`,
+    email: {
+      to: user.email,
+      subject: `Reserva confirmada en ${spot.title}`,
+      html: reservationConfirmedRenterEmail({ spotTitle: spot.title, startTime, endTime, totalPrice, confirmationCode }),
+    },
+  })
+  await notifyUser({
+    userId: spot.owner.id,
+    reservationId,
+    type: 'RESERVATION_CONFIRMED',
+    title: 'Tienes una nueva reserva',
+    message: `${user.name} reservó ${spot.title}`,
+    email: {
+      to: spot.owner.email,
+      subject: `Nueva reserva en ${spot.title}`,
+      html: reservationConfirmedHostEmail({ spotTitle: spot.title, renterName: user.name, startTime, endTime, totalPrice }),
+    },
+  })
 
   return { success: true }
 }
@@ -117,7 +150,10 @@ export async function cancelReservationAction(_prevState: CancelReservationState
     return { error: 'Reserva inválida' }
   }
 
-  const reservation = await prisma.reservation.findUnique({ where: { id: reservationId } })
+  const reservation = await prisma.reservation.findUnique({
+    where: { id: reservationId },
+    include: { spot: { include: { owner: true } } },
+  })
   if (!reservation || reservation.userId !== user.id) {
     return { error: 'Reserva no encontrada' }
   }
@@ -134,6 +170,32 @@ export async function cancelReservationAction(_prevState: CancelReservationState
 
   await notifyChange('reservations')
   await notifyChange('parking_spots')
+
+  const { spot, startTime, endTime } = reservation
+  await notifyUser({
+    userId: user.id,
+    reservationId,
+    type: 'RESERVATION_CANCELLED',
+    title: 'Cancelaste tu reserva',
+    message: `Cancelaste tu reserva en ${spot.title}`,
+    email: {
+      to: user.email,
+      subject: `Reserva cancelada en ${spot.title}`,
+      html: reservationCancelledEmail({ spotTitle: spot.title, startTime, endTime, audience: 'renter' }),
+    },
+  })
+  await notifyUser({
+    userId: spot.owner.id,
+    reservationId,
+    type: 'RESERVATION_CANCELLED',
+    title: 'Una reserva fue cancelada',
+    message: `${user.name} canceló su reserva en ${spot.title}`,
+    email: {
+      to: spot.owner.email,
+      subject: `Reserva cancelada en ${spot.title}`,
+      html: reservationCancelledEmail({ spotTitle: spot.title, startTime, endTime, audience: 'host' }),
+    },
+  })
 
   return { success: true }
 }

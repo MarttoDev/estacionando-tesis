@@ -9,6 +9,7 @@ import { BrandMark } from './brand-mark'
 import { MobileMenu } from './mobile-menu'
 import { SiteFooter } from './site-footer'
 import { ThemeToggle } from './theme-toggle'
+import { NotificationBell } from './notification-bell'
 import { AvailabilityPicker, type AvailabilityValue } from './availability-picker'
 
 const SpotMap = dynamic(() => import('./spot-map').then((mod) => mod.SpotMap), { ssr: false })
@@ -17,10 +18,11 @@ import { computeAvailabilityRange, formatWindowShort, toDateIso } from '@/lib/es
 import { useLockBodyScroll } from '@/hooks/use-lock-body-scroll'
 import type { AvailabilityWindow, Spot, View } from '@/lib/estacionando/types'
 import type { SessionUser } from '@/lib/auth/types'
+import type { NotificationItem } from '@/lib/notifications/queries'
 
-type SiteChromeProps = { view: View; nav: (view: View) => void; selected: Spot | null; closeSpot: () => void; onReserved: () => void; user: SessionUser | null; children: ReactNode }
+type SiteChromeProps = { view: View; nav: (view: View) => void; selected: Spot | null; closeSpot: () => void; onReserved: () => void; user: SessionUser | null; notifications: NotificationItem[]; children: ReactNode }
 
-export function SiteChrome({ view, nav, selected, closeSpot, onReserved, user, children }: SiteChromeProps) {
+export function SiteChrome({ view, nav, selected, closeSpot, onReserved, user, notifications, children }: SiteChromeProps) {
   const [menuOpen, setMenuOpen] = useState(false)
 
   function navAndClose(next: View) {
@@ -29,7 +31,7 @@ export function SiteChrome({ view, nav, selected, closeSpot, onReserved, user, c
   }
 
   return <>
-    <header className="sticky top-0 z-20 border-b border-border/70 bg-background/90 backdrop-blur-xl"><div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between px-5 lg:px-10"><button onClick={() => nav('explore')} className="flex items-center gap-3"><BrandMark /><span className="text-lg font-semibold tracking-[-0.04em]">estacionando<span className="text-accent">.</span></span></button><nav className="hidden items-center gap-1 text-sm md:flex">{([['explore', 'Explorar'], ['bookings', 'Mis reservas'], ['publish', 'Publicar espacio'], ['profile', 'Perfil']] as const).map(([key, label]) => <button key={key} onClick={() => nav(key)} className={`rounded-full px-4 py-2 transition ${view === key ? 'bg-muted font-medium text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>{label}</button>)}</nav><div className="flex items-center gap-2"><div className="hidden items-center gap-2 md:flex"><ThemeToggle />{user?.isAdmin && <Link href="/admin" className="flex items-center gap-2 rounded-full border border-border px-3 py-2 text-sm font-medium hover:bg-muted"><Shield className="size-4" /><span className="hidden sm:inline">Panel admin</span></Link>}{user ? <button onClick={() => nav('profile')} className="flex items-center gap-2 rounded-full border border-border px-3 py-2 text-sm font-medium hover:bg-muted">{user.avatarUrl ? <img src={user.avatarUrl} alt={user.name} className="size-4 rounded-full object-cover" /> : <UserRound className="size-4" />}<span className="hidden sm:inline">{user.name.split(' ')[0]}</span></button> : <Link href="/login" className="flex items-center gap-2 rounded-full border border-border px-3 py-2 text-sm font-medium hover:bg-muted"><UserRound className="size-4" /><span className="hidden sm:inline">Iniciar sesión</span></Link>}</div><button aria-label="Abrir menú" onClick={() => setMenuOpen(true)} className="rounded-full border border-border p-2.5 md:hidden"><Menu className="size-4" /></button></div></div></header>
+    <header className="sticky top-0 z-20 border-b border-border/70 bg-background/90 backdrop-blur-xl"><div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between px-5 lg:px-10"><button onClick={() => nav('explore')} className="flex items-center gap-3"><BrandMark /><span className="text-lg font-semibold tracking-[-0.04em]">estacionando<span className="text-accent">.</span></span></button><nav className="hidden items-center gap-1 text-sm md:flex">{([['explore', 'Explorar'], ['bookings', 'Mis reservas'], ['publish', 'Publicar espacio'], ['profile', 'Perfil']] as const).map(([key, label]) => <button key={key} onClick={() => nav(key)} className={`rounded-full px-4 py-2 transition ${view === key ? 'bg-muted font-medium text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>{label}</button>)}</nav><div className="flex items-center gap-2"><div className="hidden items-center gap-2 md:flex"><ThemeToggle />{user && <NotificationBell notifications={notifications} />}{user?.isAdmin &&<Link href="/admin" className="flex items-center gap-2 rounded-full border border-border px-3 py-2 text-sm font-medium hover:bg-muted"><Shield className="size-4" /><span className="hidden sm:inline">Panel admin</span></Link>}{user ? <button onClick={() => nav('profile')} className="flex items-center gap-2 rounded-full border border-border px-3 py-2 text-sm font-medium hover:bg-muted">{user.avatarUrl ? <img src={user.avatarUrl} alt={user.name} className="size-4 rounded-full object-cover" /> : <UserRound className="size-4" />}<span className="hidden sm:inline">{user.name.split(' ')[0]}</span></button> : <Link href="/login" className="flex items-center gap-2 rounded-full border border-border px-3 py-2 text-sm font-medium hover:bg-muted"><UserRound className="size-4" /><span className="hidden sm:inline">Iniciar sesión</span></Link>}</div>{user && <span className="md:hidden"><NotificationBell notifications={notifications} /></span>}<button aria-label="Abrir menú" onClick={() => setMenuOpen(true)} className="rounded-full border border-border p-2.5 md:hidden"><Menu className="size-4" /></button></div></div></header>
     <MobileMenu open={menuOpen} onClose={() => setMenuOpen(false)}>
       <div className="flex items-center justify-between rounded-xl border border-border px-3 py-3">
         <span className="text-sm font-medium text-muted-foreground">Tema</span>
