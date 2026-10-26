@@ -42,7 +42,10 @@ export function AppShell({
   paymentNotice: 'success' | 'failed' | 'error' | null
   paymentReservationId: string | null
 }) {
-  const paidReservation = paymentNotice === 'success' ? reservations.find((r) => r.id === paymentReservationId) ?? null : null
+  // Captured once on mount: `paymentNotice`/`paymentReservationId` come from the URL, which the
+  // effect below clears right after — recomputing this from props on every render would make it
+  // (and the modal driven by it) go stale back to null the instant that happens.
+  const [paidReservation] = useState(() => (paymentNotice === 'success' ? reservations.find((r) => r.id === paymentReservationId) ?? null : null))
   const [view, setView] = useState<View>(paymentNotice ? 'bookings' : 'explore')
   const [banner, setBanner] = useState(paymentNotice && !paidReservation ? paymentNotice : null)
   const [showReceipt, setShowReceipt] = useState(Boolean(paidReservation))
