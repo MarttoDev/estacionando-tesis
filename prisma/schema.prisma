@@ -212,7 +212,6 @@ enum PaymentStatus {
   PARTIALLY_REFUNDED
 }
 
-/// Not used by any feature yet — modeled ahead of time for the real-payments phase (Stripe/Webpay).
 model Payment {
   id                String        @id @default(uuid())
   reservationId     String        @unique @map("reservation_id")
@@ -221,6 +220,11 @@ model Payment {
   status            PaymentStatus @default(PENDING)
   provider          String
   providerPaymentId String?       @map("provider_payment_id")
+  /// Webpay's authorization code and the card's last 4 digits, captured from the commit
+  /// response — shown on the payment receipt so it reads like a real bank confirmation.
+  authorizationCode String?       @map("authorization_code")
+  cardLastDigits    String?       @map("card_last_digits")
+  paidAt            DateTime?     @map("paid_at")
   createdAt         DateTime      @default(now()) @map("created_at")
   updatedAt         DateTime      @updatedAt @map("updated_at")
 

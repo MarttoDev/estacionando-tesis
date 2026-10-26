@@ -104,7 +104,15 @@ async function handleCommit(token: string) {
   }
 
   await prisma.$transaction([
-    prisma.payment.update({ where: { id: payment.id }, data: { status: 'COMPLETED' } }),
+    prisma.payment.update({
+      where: { id: payment.id },
+      data: {
+        status: 'COMPLETED',
+        authorizationCode: result.authorization_code,
+        cardLastDigits: result.card_detail?.card_number,
+        paidAt: new Date(),
+      },
+    }),
     prisma.reservation.update({ where: { id: reservation.id }, data: { status: 'CONFIRMED' } }),
   ])
   await notifyChange('reservations')
@@ -135,5 +143,5 @@ async function handleCommit(token: string) {
     },
   })
 
-  return NextResponse.redirect(`${baseUrl}/?payment=success`, 303)
+  return NextResponse.redirect(`${baseUrl}/?payment=success&reservationId=${reservation.id}`, 303)
 }

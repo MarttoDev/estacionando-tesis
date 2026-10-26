@@ -13,12 +13,13 @@ export type ReservationView = {
   totalPrice: number
   status: ReservationStatus
   confirmationCode: string
+  payment: { authorizationCode: string | null; cardLastDigits: string | null; paidAt: Date | null } | null
 }
 
 export async function getUserReservations(userId: string): Promise<ReservationView[]> {
   const reservations = await prisma.reservation.findMany({
     where: { userId },
-    include: { spot: true },
+    include: { spot: true, payment: { select: { authorizationCode: true, cardLastDigits: true, paidAt: true } } },
     orderBy: { createdAt: 'desc' },
   })
 
@@ -34,5 +35,6 @@ export async function getUserReservations(userId: string): Promise<ReservationVi
     totalPrice: reservation.totalPrice,
     status: reservation.status,
     confirmationCode: reservation.confirmationCode,
+    payment: reservation.payment,
   }))
 }
