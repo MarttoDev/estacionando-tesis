@@ -70,7 +70,19 @@ export async function createReservationAction(_prevState: ReserveSpotState, form
   try {
     const created = await prisma.$transaction(
       async (tx) => {
-        // Free up slots whose checkout was abandoned before touching the overlap check below.
+        // Free up slots whose checkout was abandoned before touching the overlap check below:
+        // anyone else's stale holds after the TTL, and — regardless of age — this same user's
+        // own unfinished attempts on this spot, since a retry means they already gave up on it
+        // (closed the Webpay tab, hit back, etc. — nothing we can detect server-side in real time).
+        const ownStale = await tx.reservation.findMany({
+          where: { spotId: availability.spotId, userId: user.id, status: 'PENDING' },
+          select: { id: true },
+        })
+        if (ownStale.length > 0) {
+          const ids = ownStale.map((r) => r.id)
+          await tx.payment.updateMany({ where: { reservationId: { in: ids } }, data: { status: 'FAILED' } })
+          await tx.reservation.updateMany({ where: { id: { in: ids } }, data: { status: 'CANCELLED' } })
+        }
         await tx.reservation.updateMany({
           where: { spotId: availability.spotId, status: 'PENDING', createdAt: { lt: new Date(Date.now() - PENDING_RESERVATION_TTL_MS) } },
           data: { status: 'CANCELLED' },
