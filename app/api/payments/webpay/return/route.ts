@@ -9,12 +9,17 @@ const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
 
 /**
  * Webpay's return flow: once the card holder finishes on Transbank's hosted page, the browser
- * is POSTed back here with `token_ws` to commit. If they abort before entering card details,
- * Transbank instead sends `TBK_TOKEN` (POST, or GET if they abort from the very first screen) —
- * no commit is possible or needed there, the transaction was never started on their side.
+ * is sent back here with `token_ws` to commit — as a query param on a GET in practice (observed
+ * against the real Integration sandbox), though Transbank's own docs describe a POSTed form, so
+ * both are handled. If they abort before entering card details, Transbank instead sends
+ * `TBK_TOKEN` — no commit is possible or needed there, the transaction never started on their side.
  */
 export async function GET(request: Request) {
-  const tbkToken = new URL(request.url).searchParams.get('TBK_TOKEN')
+  const params = new URL(request.url).searchParams
+  const tokenWs = params.get('token_ws')
+  const tbkToken = params.get('TBK_TOKEN')
+
+  if (tokenWs) return handleCommit(tokenWs)
   if (tbkToken) return handleAbort(tbkToken)
   return NextResponse.redirect(`${baseUrl}/?payment=error`, 303)
 }
