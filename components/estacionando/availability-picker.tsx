@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { ChevronLeft, ChevronRight, Minus, Plus } from 'lucide-react'
-import { computeAvailabilityRange, timeFormatter, toDateIso } from '@/lib/estacionando/format'
+import { computeAvailabilityRange, shortDateFormatter, timeFormatter, toDateIso } from '@/lib/estacionando/format'
 
 export type AvailabilityValue = { startDate: string; startHour: number; endDate: string; endHour: number }
 
@@ -55,19 +55,31 @@ export function AvailabilityPicker({ value, onChange, minDate, maxDate }: { valu
           const isDisabled = dateIso < lowerBoundIso || (maxDate ? dateIso > maxDate : false)
           const isStart = dateIso === value.startDate
           const isEnd = dateIso === value.endDate
+          const isSingleDay = value.startDate === value.endDate
           const inRange = dateIso > value.startDate && dateIso < value.endDate
+          const isRangeEdge = (isStart || isEnd) && !isSingleDay
+          const showConnector = isRangeEdge || inRange
+          const connectLeft = inRange || isEnd
+          const connectRight = inRange || isStart
           return (
-            <button
-              key={index}
-              type="button"
-              disabled={isDisabled}
-              onClick={() => handleDayClick(dateIso)}
-              className={`mx-auto flex size-7 items-center justify-center rounded-full text-xs disabled:cursor-not-allowed disabled:text-muted-foreground/40 sm:size-8 ${
-                isStart || isEnd ? 'bg-accent font-medium text-accent-foreground' : inRange ? 'bg-accent/15' : 'text-foreground hover:bg-muted'
-              }`}
-            >
-              {Number(dateIso.slice(-2))}
-            </button>
+            <div key={index} className="relative flex items-center justify-center">
+              {showConnector && (
+                <span
+                  aria-hidden
+                  className={`absolute top-1/2 h-7 -translate-y-1/2 bg-accent/15 sm:h-8 ${connectLeft ? 'left-0' : 'left-1/2'} ${connectRight ? 'right-0' : 'right-1/2'}`}
+                />
+              )}
+              <button
+                type="button"
+                disabled={isDisabled}
+                onClick={() => handleDayClick(dateIso)}
+                className={`relative z-10 mx-auto flex size-7 items-center justify-center rounded-full text-xs disabled:cursor-not-allowed disabled:text-muted-foreground/40 sm:size-8 ${
+                  isStart || isEnd ? 'bg-accent font-medium text-accent-foreground' : inRange ? 'text-foreground' : 'text-foreground hover:bg-muted'
+                }`}
+              >
+                {Number(dateIso.slice(-2))}
+              </button>
+            </div>
           )
         })}
       </div>
@@ -99,7 +111,7 @@ function Stepper({ display, onDecrement, onIncrement }: { display: string; onDec
   )
 }
 
-function formatPreview(localDateTimeString: string) {
-  const date = new Date(localDateTimeString)
-  return `${date.toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })} ${timeFormatter.format(date)}`
+function formatPreview(isoDateTimeString: string) {
+  const date = new Date(isoDateTimeString)
+  return `${shortDateFormatter.format(date)} ${timeFormatter.format(date)}`
 }

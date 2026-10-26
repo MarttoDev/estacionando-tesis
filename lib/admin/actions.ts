@@ -7,6 +7,7 @@ import { deleteOrArchiveSpot } from '@/lib/parking-spots/delete-spot'
 import { notifyChange } from '@/lib/realtime/notify'
 import { notifyUser } from '@/lib/notifications/notify'
 import { reservationCancelledEmail } from '@/lib/notifications/templates'
+import { refundWebpayTransaction } from '@/lib/payments/transbank'
 
 export type AdminActionState = { error: string } | { success: true } | undefined
 
@@ -174,6 +175,23 @@ export async function cancelReservationAdminAction(_prevState: AdminActionState,
       html: reservationCancelledEmail({ spotTitle: spot.title, startTime, endTime, audience: 'host' }),
     },
   })
+
+  const payment = await prisma.payment.findUnique({ where: { reservationId } })
+  if (payment && payment.status === 'COMPLETED' && payment.providerPaymentId) {
+    const refundAmount = Math.round(payment.amount * 0.9)
+    try {
+      await refundWebpayTransaction(payment.providerPaymentId, refundAmount)
+      await prisma.payment.update({ where: { reservationId }, data: { status: 'PARTIALLY_REFUNDED', refundedAmount: refundAmount } })
+    } catch {
+      await notifyUser({
+        userId: renter.id,
+        reservationId,
+        type: 'RESERVATION_CANCELLED',
+        title: 'Tu reembolso no se procesó automáticamente',
+        message: `Hubo un problema al devolver el 90% de tu pago ($${refundAmount.toLocaleString('es-CL')}). Contáctanos para completarlo.`,
+      })
+    }
+  }
 
   return { success: true }
 }

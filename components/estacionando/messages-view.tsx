@@ -89,7 +89,7 @@ export function MessagesView({
   return (
     <PageShell eyebrow="Tu bandeja" title="Mensajes" description="Conversaciones con anfitriones y arrendatarios, por espacio.">
       <div className="grid min-w-0 gap-5 lg:grid-cols-[.9fr_1.4fr]">
-        <div className={`min-w-0 rounded-3xl border border-border bg-card ${selectedId ? 'hidden lg:block' : 'block'}`}>
+        <div className={`min-w-0 overflow-hidden rounded-3xl border border-border bg-card ${selectedId ? 'hidden lg:block' : 'block'}`}>
           {conversations.length === 0 ? (
             <div className="flex min-h-64 flex-col items-center justify-center p-6 text-center">
               <MessageCircle className="size-10 text-accent" />
@@ -119,7 +119,7 @@ export function MessagesView({
           )}
         </div>
 
-        <div className={`flex min-h-[28rem] min-w-0 flex-col rounded-3xl border border-border bg-card ${selectedId ? 'flex' : 'hidden lg:flex'}`}>
+        <div className={`flex h-[32rem] min-w-0 flex-col overflow-hidden rounded-3xl border border-border bg-card ${selectedId ? 'flex' : 'hidden lg:flex'}`}>
           {!selectedId ? (
             <div className="flex flex-1 flex-col items-center justify-center p-6 text-center text-sm text-muted-foreground">Elige una conversación para ver los mensajes.</div>
           ) : loadingThread && !thread ? (

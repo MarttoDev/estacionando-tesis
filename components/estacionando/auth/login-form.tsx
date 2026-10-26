@@ -21,10 +21,7 @@ export function LoginForm() {
         />
       </label>
       <label className="text-sm font-medium">
-        <span className="flex items-center justify-between">
-          Contraseña
-          <Link href="/forgot-password" className="text-xs font-medium text-accent">¿Olvidaste tu contraseña?</Link>
-        </span>
+        Contraseña
         <input
           name="password"
           type="password"
@@ -34,6 +31,7 @@ export function LoginForm() {
           placeholder="••••••••"
         />
       </label>
+      <Link href="/forgot-password" className="-mt-2 self-end text-xs font-medium text-accent">¿Olvidaste tu contraseña?</Link>
       {state?.error && <p className="text-sm text-destructive">{state.error}</p>}
       <button
         type="submit"
