@@ -82,6 +82,13 @@ export function passwordResetEmail(params: { resetUrl: string }) {
   return layout(body, params.resetUrl, 'Restablecer contraseña')
 }
 
+export function paymentFailedEmail(params: { spotTitle: string }) {
+  const body = `
+    <p style="font-size:18px;font-weight:700;color:${INK};margin:0;">No pudimos confirmar tu pago</p>
+    <p style="margin-top:8px;font-size:14px;color:${MUTED};line-height:1.6;">El pago de tu reserva en <strong style="color:${INK}">${params.spotTitle}</strong> no se completó, así que liberamos el horario. Puedes intentar reservarlo de nuevo cuando quieras.</p>`
+  return layout(body)
+}
+
 export function reservationReminderEmail(params: { spotTitle: string; startTime: Date; endTime: Date; confirmationCode: string }) {
   const body = `
     <p style="font-size:18px;font-weight:700;color:${INK};margin:0;">Tu reserva es pronto</p>

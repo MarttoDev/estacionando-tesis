@@ -146,7 +146,11 @@ function SpotDialog({ spot, close, onReserved, user, startConversation }: { spot
     setContactError(null)
     const result = await startConversation(spot.id)
     setContactPending(false)
-    if (result && 'error' in result) setContactError(result.error)
+    if (result && 'error' in result) {
+      setContactError(result.error)
+      return
+    }
+    close()
   }
 
   useLockBodyScroll(true)
@@ -154,6 +158,22 @@ function SpotDialog({ spot, close, onReserved, user, startConversation }: { spot
   useEffect(() => {
     if (state && 'success' in state) onReserved()
   }, [state, onReserved])
+
+  useEffect(() => {
+    if (!state || !('redirect' in state)) return
+    const { url, token } = state.redirect
+    const form = document.createElement('form')
+    form.method = 'POST'
+    form.action = url
+    form.style.display = 'none'
+    const input = document.createElement('input')
+    input.type = 'hidden'
+    input.name = 'token_ws'
+    input.value = token
+    form.appendChild(input)
+    document.body.appendChild(form)
+    form.submit()
+  }, [state])
 
   useEffect(() => {
     setRange(segmentToRange(spot.availableWindows[segmentIndex]))
