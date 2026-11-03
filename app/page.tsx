@@ -4,16 +4,18 @@ import { getOwnerSpots, getParkingTypes, getPublishedSpots } from '@/lib/parking
 import { getHostReservations, getUserReservations } from '@/lib/reservations/queries'
 import { getUserNotifications } from '@/lib/notifications/queries'
 import { getUserConversations } from '@/lib/messages/queries'
+import { getIdentityVerification } from '@/lib/verification/queries'
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ payment?: string; reservationId?: string }> }) {
   const [user, spots, parkingTypes, { payment, reservationId }] = await Promise.all([getCurrentUser(), getPublishedSpots(), getParkingTypes(), searchParams])
-  const [reservations, hostReservations, ownerSpots, notifications, conversations] = await Promise.all([
+  const [reservations, hostReservations, ownerSpots, notifications, conversations, verification] = await Promise.all([
     user ? getUserReservations(user.id) : Promise.resolve([]),
     user ? getHostReservations(user.id) : Promise.resolve([]),
     user ? getOwnerSpots(user.id) : Promise.resolve([]),
     user ? getUserNotifications(user.id) : Promise.resolve([]),
     user ? getUserConversations(user.id) : Promise.resolve([]),
+    user ? getIdentityVerification(user.id) : Promise.resolve(null),
   ])
   const paymentNotice = payment === 'success' || payment === 'failed' || payment === 'error' ? payment : null
-  return <AppShell user={user} spots={spots} parkingTypes={parkingTypes} reservations={reservations} hostReservations={hostReservations} ownerSpots={ownerSpots} notifications={notifications} conversations={conversations} paymentNotice={paymentNotice} paymentReservationId={reservationId ?? null} />
+  return <AppShell user={user} spots={spots} parkingTypes={parkingTypes} reservations={reservations} hostReservations={hostReservations} ownerSpots={ownerSpots} notifications={notifications} conversations={conversations} verification={verification} paymentNotice={paymentNotice} paymentReservationId={reservationId ?? null} />
 }

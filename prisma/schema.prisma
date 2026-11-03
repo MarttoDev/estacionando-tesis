@@ -283,8 +283,10 @@ model IdentityVerification {
   userId     String             @unique @map("user_id")
   status     VerificationStatus @default(PENDING)
   provider   String?
+  sessionId  String?            @map("session_id")
   verifiedAt DateTime?          @map("verified_at")
   createdAt  DateTime           @default(now()) @map("created_at")
+  updatedAt  DateTime           @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

@@ -6,23 +6,20 @@ import { useActionState, useEffect, useRef, useState } from 'react'
 import { BadgeCheck, Calendar, CalendarCheck, Camera, Car, Check, Home, IdCard, LockKeyhole, LogOut, ScanFace, Shield, Star, UserRound } from 'lucide-react'
 import { PageShell } from './page-shell'
 import { logoutAction, updateAvatarAction, updatePasswordAction } from '@/lib/auth/actions'
+import { startIdentityVerificationAction, refreshIdentityVerificationAction } from '@/lib/verification/actions'
 import { compressImage } from '@/lib/estacionando/compress-image'
-import type { ScanState } from '@/lib/estacionando/types'
+import type { VerificationView } from '@/lib/verification/queries'
 import type { SessionUser } from '@/lib/auth/types'
 
 export function Profile({
   user,
-  verified,
-  scanState,
-  startScan,
+  verification,
   reservationsMadeCount,
   reservationsReceivedCount,
   spotsPublishedCount,
 }: {
   user: SessionUser | null
-  verified: boolean
-  scanState: ScanState
-  startScan: () => void
+  verification: VerificationView | null
   reservationsMadeCount: number
   reservationsReceivedCount: number
   spotsPublishedCount: number
@@ -81,13 +78,80 @@ export function Profile({
               <Link href="/admin" className="mt-5 flex w-full items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-medium text-primary-foreground sm:w-auto"><Shield className="size-4" /> Ir al panel de administración</Link>
             </div>
           )}
-          {!user.isAdmin && (
-            <div className="rounded-3xl border border-border bg-card p-6 sm:p-7"><div className="flex items-start justify-between gap-4"><div><span className="inline-flex size-11 items-center justify-center rounded-2xl bg-accent/15 text-accent"><ScanFace className="size-5" /></span><h2 className="mt-5 text-2xl font-semibold tracking-[-0.05em]">Verificación facial</h2><p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">Comprobamos que eres una persona real. Tu rostro se procesa solo en este prototipo y no se guarda.</p></div>{verified && <BadgeCheck className="size-7 text-accent" />}</div><div className="mt-7 rounded-2xl border border-dashed border-border bg-muted/50 p-6 text-center">{scanState === 'scanning' ? <><div className="mx-auto flex size-20 animate-pulse items-center justify-center rounded-full border-4 border-accent bg-accent/10"><ScanFace className="size-9 text-accent" /></div><p className="mt-4 font-medium">Analizando tu rostro…</p><p className="mt-1 text-xs text-muted-foreground">Mantén la mirada al frente</p></> : scanState === 'done' ? <><div className="mx-auto flex size-20 items-center justify-center rounded-full bg-accent text-accent-foreground"><Check className="size-9" /></div><p className="mt-4 font-medium">Identidad verificada</p><p className="mt-1 text-xs text-muted-foreground">Ya puedes reservar y publicar espacios.</p></> : <><Camera className="mx-auto size-9 text-muted-foreground" /><p className="mt-4 font-medium">Listo para comenzar</p><p className="mt-1 text-xs text-muted-foreground">Te tomará menos de un minuto.</p></>}</div>{!verified && <button disabled={scanState === 'scanning'} onClick={startScan} className="mt-5 flex w-full items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-medium text-primary-foreground disabled:opacity-50"><ScanFace className="size-4" /> {scanState === 'scanning' ? 'Verificando…' : 'Comenzar verificación'}</button>}<div className="mt-5 flex gap-2 text-xs text-muted-foreground"><LockKeyhole className="size-4 shrink-0" /> Sin fotos guardadas. Esta simulación no usa cámara real.</div></div>
-          )}
+          {!user.isAdmin && <VerificationCard verification={verification} />}
           <PasswordForm />
         </div>
       </div>
     </PageShell>
+  )
+}
+
+function VerificationCard({ verification }: { verification: VerificationView | null }) {
+  const [state, formAction, pending] = useActionState(startIdentityVerificationAction, undefined)
+  const router = useRouter()
+
+  useEffect(() => {
+    if (state && 'url' in state && state.url) {
+      window.location.href = state.url
+    }
+  }, [state])
+
+  const status = verification?.status ?? null
+  const verified = status === 'VERIFIED'
+
+  return (
+    <div className="rounded-3xl border border-border bg-card p-6 sm:p-7">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <span className="inline-flex size-11 items-center justify-center rounded-2xl bg-accent/15 text-accent"><ScanFace className="size-5" /></span>
+          <h2 className="mt-5 text-2xl font-semibold tracking-[-0.05em]">Verificación de identidad</h2>
+          <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">Verifica tu identidad con documento y rostro mediante Didit. Así compartir espacios es más seguro para todos.</p>
+        </div>
+        {verified && <BadgeCheck className="size-7 text-accent" />}
+      </div>
+      <div className="mt-7 rounded-2xl border border-dashed border-border bg-muted/50 p-6 text-center">
+        {verified ? (
+          <>
+            <div className="mx-auto flex size-20 items-center justify-center rounded-full bg-accent text-accent-foreground"><Check className="size-9" /></div>
+            <p className="mt-4 font-medium">Identidad verificada</p>
+            <p className="mt-1 text-xs text-muted-foreground">Ya puedes reservar y publicar espacios con confianza.</p>
+          </>
+        ) : status === 'REJECTED' ? (
+          <>
+            <div className="mx-auto flex size-20 items-center justify-center rounded-full bg-destructive text-destructive-foreground"><Camera className="size-9" /></div>
+            <p className="mt-4 font-medium">Verificación rechazada</p>
+            <p className="mt-1 text-xs text-muted-foreground">Puedes volver a intentarlo cuando quieras.</p>
+          </>
+        ) : status === 'PENDING' ? (
+          <>
+            <div className="mx-auto flex size-20 animate-pulse items-center justify-center rounded-full border-4 border-accent bg-accent/10"><ScanFace className="size-9 text-accent" /></div>
+            <p className="mt-4 font-medium">Verificación en proceso</p>
+            <p className="mt-1 text-xs text-muted-foreground">Estamos revisando tus documentos.</p>
+          </>
+        ) : (
+          <>
+            <Camera className="mx-auto size-9 text-muted-foreground" />
+            <p className="mt-4 font-medium">Listo para comenzar</p>
+            <p className="mt-1 text-xs text-muted-foreground">Necesitarás tu documento de identidad y acceso a la cámara.</p>
+          </>
+        )}
+      </div>
+      {!verified && (
+        <form action={formAction} className="mt-5">
+          <button type="submit" disabled={pending} className="flex w-full items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-medium text-primary-foreground disabled:opacity-50">
+            <ScanFace className="size-4" />
+            {pending ? 'Abriendo verificación…' : status === 'REJECTED' ? 'Reintentar verificación' : status === 'PENDING' ? 'Continuar verificación' : 'Comenzar verificación'}
+          </button>
+          {state && 'error' in state && state.error && <p className="mt-3 text-center text-sm text-destructive">{state.error}</p>}
+        </form>
+      )}
+      {status === 'PENDING' && (
+        <button onClick={() => { void refreshIdentityVerificationAction().then(() => router.refresh()) }} className="mt-3 w-full text-center text-xs text-muted-foreground hover:text-foreground">
+          Actualizar estado
+        </button>
+      )}
+      <div className="mt-5 flex gap-2 text-xs text-muted-foreground"><LockKeyhole className="size-4 shrink-0" /> Tus datos son verificados por Didit. No guardamos fotos ni documentos.</div>
+    </div>
   )
 }
 
