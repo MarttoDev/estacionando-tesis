@@ -1,18 +1,19 @@
 import { AppShell } from '@/components/estacionando/app-shell'
 import { getCurrentUser } from '@/lib/auth/dal'
 import { getOwnerSpots, getParkingTypes, getPublishedSpots } from '@/lib/parking-spots/queries'
-import { getUserReservations } from '@/lib/reservations/queries'
+import { getHostReservations, getUserReservations } from '@/lib/reservations/queries'
 import { getUserNotifications } from '@/lib/notifications/queries'
 import { getUserConversations } from '@/lib/messages/queries'
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ payment?: string; reservationId?: string }> }) {
   const [user, spots, parkingTypes, { payment, reservationId }] = await Promise.all([getCurrentUser(), getPublishedSpots(), getParkingTypes(), searchParams])
-  const [reservations, ownerSpots, notifications, conversations] = await Promise.all([
+  const [reservations, hostReservations, ownerSpots, notifications, conversations] = await Promise.all([
     user ? getUserReservations(user.id) : Promise.resolve([]),
+    user ? getHostReservations(user.id) : Promise.resolve([]),
     user ? getOwnerSpots(user.id) : Promise.resolve([]),
     user ? getUserNotifications(user.id) : Promise.resolve([]),
     user ? getUserConversations(user.id) : Promise.resolve([]),
   ])
   const paymentNotice = payment === 'success' || payment === 'failed' || payment === 'error' ? payment : null
-  return <AppShell user={user} spots={spots} parkingTypes={parkingTypes} reservations={reservations} ownerSpots={ownerSpots} notifications={notifications} conversations={conversations} paymentNotice={paymentNotice} paymentReservationId={reservationId ?? null} />
+  return <AppShell user={user} spots={spots} parkingTypes={parkingTypes} reservations={reservations} hostReservations={hostReservations} ownerSpots={ownerSpots} notifications={notifications} conversations={conversations} paymentNotice={paymentNotice} paymentReservationId={reservationId ?? null} />
 }

@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db/prisma'
+import type { ReviewDirection, ReviewStatus } from '@prisma/client'
 
 export type AdminUserRow = {
   id: string
@@ -56,18 +57,34 @@ export type AdminTaskRow = {
   assignedTo: { id: string; name: string } | null
 }
 
+export type AdminReviewRow = {
+  id: string
+  direction: ReviewDirection
+  rating: number
+  comment: string | null
+  authorName: string
+  targetName: string
+  spotTitle: string
+  status: ReviewStatus
+  removalReason: string | null
+  appealMessage: string | null
+  appealedAt: Date | null
+  createdAt: Date
+}
+
 export type AdminDashboardData = {
   stats: AdminStats
   users: AdminUserRow[]
   spots: AdminSpotRow[]
   activeReservations: AdminReservationRow[]
   tasks: AdminTaskRow[]
+  reviews: AdminReviewRow[]
 }
 
 export async function getAdminDashboardData(): Promise<AdminDashboardData> {
   const now = new Date()
 
-  const [users, spots, totalReservations, activeReservationRows, tasks] = await Promise.all([
+  const [users, spots, totalReservations, activeReservationRows, tasks, reviewRows] = await Promise.all([
     prisma.user.findMany({
       include: { _count: { select: { parkingSpots: true, reservations: true } } },
       orderBy: { createdAt: 'desc' },
@@ -85,6 +102,14 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     prisma.task.findMany({
       include: { assignedTo: { select: { id: true, name: true } } },
       orderBy: { order: 'asc' },
+    }),
+    prisma.review.findMany({
+      include: {
+        author: { select: { name: true } },
+        target: { select: { name: true } },
+        reservation: { select: { spot: { select: { title: true } } } },
+      },
+      orderBy: { createdAt: 'desc' },
     }),
   ])
 
@@ -143,5 +168,25 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
       status: t.status,
       assignedTo: t.assignedTo ? { id: t.assignedTo.id, name: t.assignedTo.name } : null,
     })),
+    reviews: [...reviewRows]
+      .sort((a, b) => {
+        const aPriority = a.status === 'APPEALED' ? 0 : 1
+        const bPriority = b.status === 'APPEALED' ? 0 : 1
+        return aPriority - bPriority || b.createdAt.getTime() - a.createdAt.getTime()
+      })
+      .map((r) => ({
+        id: r.id,
+        direction: r.direction,
+        rating: r.rating,
+        comment: r.comment,
+        authorName: r.author.name,
+        targetName: r.target.name,
+        spotTitle: r.reservation.spot.title,
+        status: r.status,
+        removalReason: r.removalReason,
+        appealMessage: r.appealMessage,
+        appealedAt: r.appealedAt,
+        createdAt: r.createdAt,
+      })),
   }
 }

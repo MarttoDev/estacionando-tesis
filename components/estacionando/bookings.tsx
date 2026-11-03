@@ -1,33 +1,41 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useActionState, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Ban, CalendarDays, Check, MessageCircle, Navigation, ShieldCheck, UserRound } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Ban, CalendarDays, Check, MessageCircle, Navigation, ShieldCheck, Star, UserRound } from 'lucide-react'
 import { PageShell } from './page-shell'
 import { RouteToSpotModal } from './route-to-spot-modal'
 import { CancelReservationModal } from './cancel-reservation-modal'
+import { ReviewModal } from './review-modal'
+import { appealReviewAction } from '@/lib/reviews/actions'
 import { formatReservationRange } from '@/lib/estacionando/format'
 import type { SessionUser } from '@/lib/auth/types'
-import type { ReservationView } from '@/lib/reservations/queries'
+import type { ReservationView, ReviewView } from '@/lib/reservations/queries'
 import type { StartConversationState } from '@/lib/messages/actions'
 
 type Tab = 'active' | 'completed'
+type Perspective = 'renter' | 'host'
 
 export function Bookings({
   user,
   reservations,
+  hostReservations,
   onExplore,
   onMessageHost,
 }: {
   user: SessionUser | null
   reservations: ReservationView[]
+  hostReservations: ReservationView[]
   onExplore: () => void
   onMessageHost: (spotId: string) => Promise<StartConversationState>
 }) {
   const [tab, setTab] = useState<Tab>('active')
+  const [perspective, setPerspective] = useState<Perspective>('renter')
   const [routeSpot, setRouteSpot] = useState<{ title: string; latitude: number; longitude: number } | null>(null)
   const [cancelling, setCancelling] = useState<{ id: string; spotTitle: string; totalPrice: number } | null>(null)
   const [messagingId, setMessagingId] = useState<string | null>(null)
+  const [reviewing, setReviewing] = useState<{ id: string; title: string; targetName: string } | null>(null)
   const now = useMemo(() => new Date(), [])
 
   async function handleMessageHost(reservationId: string, spotId: string) {
@@ -36,8 +44,14 @@ export function Bookings({
     setMessagingId(null)
   }
 
-  const active = useMemo(() => reservations.filter((reservation) => reservation.endTime > now && reservation.status !== 'CANCELLED'), [reservations, now])
-  const completed = useMemo(() => reservations.filter((reservation) => reservation.endTime <= now || reservation.status === 'CANCELLED'), [reservations, now])
+  function switchPerspective(next: Perspective) {
+    setPerspective(next)
+    setTab('active')
+  }
+
+  const list = perspective === 'renter' ? reservations : hostReservations
+  const active = useMemo(() => list.filter((reservation) => reservation.endTime > now && reservation.status !== 'CANCELLED'), [list, now])
+  const completed = useMemo(() => list.filter((reservation) => reservation.endTime <= now || reservation.status === 'CANCELLED'), [list, now])
   const visible = tab === 'active' ? active : completed
 
   if (!user) {
@@ -58,6 +72,14 @@ export function Bookings({
 
   return (
     <PageShell eyebrow="Tu movilidad" title="Mis reservas" description="Todo lo que necesitas para llegar, estacionar y seguir.">
+      <div className="mb-5 flex w-fit rounded-full border border-border p-1">
+        <button onClick={() => switchPerspective('renter')} className={`rounded-full px-4 py-2 text-sm font-medium transition ${perspective === 'renter' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+          Arrendadas
+        </button>
+        <button onClick={() => switchPerspective('host')} className={`rounded-full px-4 py-2 text-sm font-medium transition ${perspective === 'host' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+          Recibidas {hostReservations.length > 0 && <span className="tabular-nums">({hostReservations.length})</span>}
+        </button>
+      </div>
       <div className="mb-6 flex w-fit rounded-full border border-border p-1">
         <button onClick={() => setTab('active')} className={`rounded-full px-4 py-2 text-sm font-medium transition ${tab === 'active' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
           Activas {active.length > 0 && <span className="tabular-nums">({active.length})</span>}
@@ -73,53 +95,78 @@ export function Bookings({
               <EmptyBookings tab={tab} onExplore={onExplore} />
             </div>
           ) : (
-            visible.map((reservation) => (
-              <div key={reservation.id} className="rounded-3xl border border-border bg-card p-5 sm:p-7">
-                <div className="flex items-start justify-between">
-                  <div className="min-w-0">
-                    {reservation.status === 'CANCELLED' ? (
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-destructive/10 px-3 py-1.5 text-xs font-medium text-destructive"><Ban className="size-3.5" /> Cancelada</span>
-                    ) : (
-                      <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium ${tab === 'active' ? 'bg-accent/15 text-accent' : 'bg-muted text-muted-foreground'}`}>
-                        <Check className="size-3.5" /> {tab === 'active' ? 'Confirmada' : 'Completada'}
-                      </span>
-                    )}
-                    <h2 className="mt-5 text-2xl font-semibold tracking-[-0.05em]">{reservation.spotTitle}</h2>
-                    <p className="mt-1 text-sm text-muted-foreground">{formatReservationRange(reservation.startTime, reservation.endTime)} · {reservation.spotArea}</p>
+            visible.map((reservation) => {
+              const myReview = reservation.reviews.find((review) => review.authorId === user.id)
+              const rateable = reservation.endTime <= now && reservation.status !== 'CANCELLED'
+              const targetName = perspective === 'renter' ? reservation.hostName : reservation.renterName
+
+              return (
+                <div key={reservation.id} className="rounded-3xl border border-border bg-card p-5 sm:p-7">
+                  <div className="flex items-start justify-between">
+                    <div className="min-w-0">
+                      {reservation.status === 'CANCELLED' ? (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-destructive/10 px-3 py-1.5 text-xs font-medium text-destructive"><Ban className="size-3.5" /> Cancelada</span>
+                      ) : (
+                        <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium ${tab === 'active' ? 'bg-accent/15 text-accent' : 'bg-muted text-muted-foreground'}`}>
+                          <Check className="size-3.5" /> {tab === 'active' ? 'Confirmada' : 'Completada'}
+                        </span>
+                      )}
+                      <h2 className="mt-5 text-2xl font-semibold tracking-[-0.05em]">{reservation.spotTitle}</h2>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {formatReservationRange(reservation.startTime, reservation.endTime)} · {reservation.spotArea}
+                      </p>
+                      {perspective === 'host' && <p className="mt-1 text-sm text-muted-foreground">Arrendatario: {reservation.renterName}</p>}
+                    </div>
                   </div>
-                </div>
-                <div className="mt-7 rounded-2xl bg-muted p-5">
-                  <p className="text-xs text-muted-foreground">Código de acceso</p>
-                  <p className="mt-2 break-all font-mono text-2xl tracking-[0.2em] sm:text-3xl">{reservation.confirmationCode}</p>
-                  <p className="mt-2 text-xs text-muted-foreground">Muéstralo al llegar al estacionamiento.</p>
-                </div>
-                {tab === 'active' && (
-                  <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-                    {reservation.spotLatitude !== null && reservation.spotLongitude !== null && (
+                  <div className="mt-7 rounded-2xl bg-muted p-5">
+                    <p className="text-xs text-muted-foreground">Código de acceso</p>
+                    <p className="mt-2 break-all font-mono text-2xl tracking-[0.2em] sm:text-3xl">{reservation.confirmationCode}</p>
+                    <p className="mt-2 text-xs text-muted-foreground">Muéstralo al llegar al estacionamiento.</p>
+                  </div>
+
+                  {tab === 'active' && perspective === 'renter' && (
+                    <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                      {reservation.spotLatitude !== null && reservation.spotLongitude !== null && (
+                        <button
+                          onClick={() => setRouteSpot({ title: reservation.spotTitle, latitude: reservation.spotLatitude as number, longitude: reservation.spotLongitude as number })}
+                          className="flex flex-1 items-center justify-center gap-2 rounded-full border border-accent px-4 py-2.5 text-sm font-medium text-accent hover:bg-accent/10"
+                        >
+                          <Navigation className="size-4" /> Ir al lugar
+                        </button>
+                      )}
                       <button
-                        onClick={() => setRouteSpot({ title: reservation.spotTitle, latitude: reservation.spotLatitude as number, longitude: reservation.spotLongitude as number })}
-                        className="flex flex-1 items-center justify-center gap-2 rounded-full border border-accent px-4 py-2.5 text-sm font-medium text-accent hover:bg-accent/10"
+                        onClick={() => handleMessageHost(reservation.id, reservation.spotId)}
+                        disabled={messagingId === reservation.id}
+                        className="flex flex-1 items-center justify-center gap-2 rounded-full border border-border px-4 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted disabled:opacity-50"
                       >
-                        <Navigation className="size-4" /> Ir al lugar
+                        <MessageCircle className="size-4" /> {messagingId === reservation.id ? 'Abriendo chat…' : 'Mensaje al anfitrión'}
                       </button>
-                    )}
-                    <button
-                      onClick={() => handleMessageHost(reservation.id, reservation.spotId)}
-                      disabled={messagingId === reservation.id}
-                      className="flex flex-1 items-center justify-center gap-2 rounded-full border border-border px-4 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted disabled:opacity-50"
-                    >
-                      <MessageCircle className="size-4" /> {messagingId === reservation.id ? 'Abriendo chat…' : 'Mensaje al anfitrión'}
-                    </button>
-                    <button
-                      onClick={() => setCancelling({ id: reservation.id, spotTitle: reservation.spotTitle, totalPrice: reservation.totalPrice })}
-                      className="flex flex-1 items-center justify-center gap-2 rounded-full border border-border px-4 py-2.5 text-sm font-medium text-muted-foreground hover:border-destructive hover:text-destructive"
-                    >
-                      <Ban className="size-4" /> Cancelar reserva
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))
+                      <button
+                        onClick={() => setCancelling({ id: reservation.id, spotTitle: reservation.spotTitle, totalPrice: reservation.totalPrice })}
+                        className="flex flex-1 items-center justify-center gap-2 rounded-full border border-border px-4 py-2.5 text-sm font-medium text-muted-foreground hover:border-destructive hover:text-destructive"
+                      >
+                        <Ban className="size-4" /> Cancelar reserva
+                      </button>
+                    </div>
+                  )}
+
+                  {tab === 'completed' && rateable && (
+                    <div className="mt-4 rounded-2xl border border-border p-4">
+                      {myReview ? (
+                        <ReviewDisplay review={myReview} />
+                      ) : (
+                        <button
+                          onClick={() => setReviewing({ id: reservation.id, title: reservation.spotTitle, targetName })}
+                          className="flex items-center gap-2 rounded-full border border-border px-4 py-2.5 text-sm font-medium hover:bg-muted"
+                        >
+                          <Star className="size-4" /> Calificar a {targetName}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })
           )}
         </div>
         <div className="min-w-0 rounded-3xl border border-accent/20 bg-accent/10 p-6 text-foreground">
@@ -131,7 +178,70 @@ export function Bookings({
       </div>
       {routeSpot && <RouteToSpotModal spot={routeSpot} onClose={() => setRouteSpot(null)} />}
       {cancelling && <CancelReservationModal reservation={cancelling} onClose={() => setCancelling(null)} />}
+      {reviewing && <ReviewModal reservationId={reviewing.id} title={reviewing.title} targetName={reviewing.targetName} onClose={() => setReviewing(null)} />}
     </PageShell>
+  )
+}
+
+function ReviewStars({ rating }: { rating: number }) {
+  return (
+    <div className="flex items-center gap-1">
+      {[1, 2, 3, 4, 5].map((value) => (
+        <Star key={value} className={`size-4 ${value <= rating ? 'fill-accent text-accent' : 'text-muted-foreground'}`} />
+      ))}
+    </div>
+  )
+}
+
+function ReviewDisplay({ review }: { review: ReviewView }) {
+  if (review.status === 'REMOVED') {
+    return (
+      <div>
+        <div className="flex items-center gap-2 text-sm font-medium text-destructive">
+          <Ban className="size-4" /> Eliminada por moderación
+        </div>
+        {review.removalReason && <p className="mt-1 text-sm text-muted-foreground">Motivo: {review.removalReason}</p>}
+        <AppealForm reviewId={review.id} />
+      </div>
+    )
+  }
+
+  if (review.status === 'APPEALED') {
+    return <p className="text-sm text-muted-foreground">Apelación enviada: un administrador la revisará pronto.</p>
+  }
+
+  return (
+    <div>
+      <p className="text-sm text-muted-foreground">Tu calificación</p>
+      <div className="mt-1.5"><ReviewStars rating={review.rating} /></div>
+      {review.comment && <p className="mt-2 text-sm leading-6 text-muted-foreground">{review.comment}</p>}
+    </div>
+  )
+}
+
+function AppealForm({ reviewId }: { reviewId: string }) {
+  const router = useRouter()
+  const [state, formAction, pending] = useActionState(appealReviewAction, undefined)
+
+  useEffect(() => {
+    if (state && 'success' in state) router.refresh()
+  }, [state, router])
+
+  return (
+    <form action={formAction} className="mt-3">
+      <input type="hidden" name="reviewId" value={reviewId} />
+      <textarea
+        name="appealMessage"
+        rows={2}
+        required
+        placeholder="Explica por qué esta reseña debería restaurarse"
+        className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-accent/30"
+      />
+      {state && 'error' in state && <p className="mt-1 text-xs text-destructive">{state.error}</p>}
+      <button type="submit" disabled={pending} className="mt-2 rounded-full border border-border px-4 py-2 text-xs font-medium hover:bg-muted disabled:opacity-50">
+        {pending ? 'Enviando…' : 'Apelar esta reseña'}
+      </button>
+    </form>
   )
 }
 

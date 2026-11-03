@@ -185,7 +185,12 @@ enum ReviewDirection {
   HOST_TO_RENTER
 }
 
-/// Not used by any feature yet — modeled ahead of time for the reviews/reputation phase.
+enum ReviewStatus {
+  ACTIVE
+  REMOVED
+  APPEALED
+}
+
 model Review {
   id            String          @id @default(uuid())
   reservationId String          @map("reservation_id")
@@ -194,6 +199,11 @@ model Review {
   direction     ReviewDirection
   rating        Int
   comment       String?
+  status        ReviewStatus    @default(ACTIVE)
+  removalReason String?         @map("removal_reason")
+  appealMessage String?         @map("appeal_message")
+  appealedAt    DateTime?       @map("appealed_at")
+  moderatedAt   DateTime?       @map("moderated_at")
   createdAt     DateTime        @default(now()) @map("created_at")
 
   reservation Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)

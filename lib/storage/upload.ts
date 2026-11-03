@@ -7,6 +7,10 @@ const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 export type UploadResult = { url: string } | { error: string }
 
 export async function uploadImage(file: File, folder: string): Promise<UploadResult> {
+  if (!supabaseAdmin) {
+    return { error: 'La subida de imágenes no está configurada en este entorno' }
+  }
+
   if (!ALLOWED_TYPES.includes(file.type)) {
     return { error: 'Solo se permiten imágenes JPG, PNG o WEBP' }
   }
